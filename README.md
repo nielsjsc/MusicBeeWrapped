@@ -1,154 +1,88 @@
 # MusicBeeWrapped
 
-A comprehensive MusicBee plugin that creates Spotify Wrapped-style yearly music statistics with a beautiful web-based interface.
+A MusicBee plugin that generates yearly music listening statistics and presents them through a web interface. Think Spotify Wrapped, but for your local music library with more detailed behavioral analysis.
 
-## Features
+## Overview
 
-### 📊 Comprehensive Analytics
-- **Real-time tracking** with 5-second minimum play rule
-- **Year-based organization** of listening data
-- **Enhanced metrics**: listening patterns, skip rates, discovery metrics
-- **Cross-platform compatibility** with automatic data directory management
+This plugin tracks your music listening habits in real-time and generates comprehensive yearly reports. The core differentiator is the behavioral analysis engine that detects listening patterns most streaming services miss: obsession periods where you're completely consumed by a particular artist or album, your album consumption patterns (do you listen to full albums or just skip around), and temporal listening behaviors.
 
-### 🎯 Advanced Insights
-- **Obsession period detection** - Find when you were intensely focused on specific artists/albums/tracks
-- **Album listening behavior analysis** - Discover if you're an "Album Purist", "Track Shuffler", or "Mood Curator"
-- **Temporal pattern analysis** - Your listening habits by time of day, day of week, and season
-- **Discovery tracking** - New artists and genres explored throughout the year
+The data is presented through a slide-based web interface that opens in your browser, similar to Spotify Wrapped but with deeper insights into your actual listening behavior rather than just play counts.
 
-### 🌐 Beautiful Web Interface
-- **Slide-based presentation** similar to Spotify Wrapped
-- **Interactive charts** showing daily listening activity
-- **Responsive design** optimized for both desktop and mobile
-- **Smooth animations** with counting effects and transitions
-- **Multi-year support** with elegant year selection interface
+## Core Features
 
-## Installation
+**Real-time Tracking**: Implements a 5-second minimum play rule to filter out accidental plays and skips. Uses MusicBee's event system for immediate capture without polling.
 
-1. Download the latest release or build from source
-2. Copy `mb_MusicBeeWrapped.dll` to your MusicBee `Plugins` folder
-3. Restart MusicBee
-4. The plugin will automatically start tracking your music listening
+**Behavioral Analysis**: Goes beyond simple statistics to identify obsession periods (when you play an artist/album/track intensively over multiple days), classify your listening personality (Album Purist, Track Shuffler, Mood Curator), and analyze temporal patterns in your music consumption.
 
-## Usage
+**Data Architecture**: Year-based data organization with XML persistence, automatic backups, and metadata caching. Cross-platform data directory management handles different OS conventions properly.
 
-### Viewing Your Wrapped
-1. In MusicBee, go to **Tools** → **MusicBee Wrapped**
-2. If you have multiple years of data, select the year you want to view
-3. Your personalized Wrapped will open in your default browser
+**Web Interface**: Single-file HTML generation with embedded CSS and JavaScript. Responsive design with canvas-based charts for data visualization. Multi-year support with year selection interface.
 
-### Navigation
-- Use arrow keys or the navigation buttons to move between slides
-- Click the dots at the bottom to jump to specific slides
-- The experience is fully responsive and works on mobile devices
+## Installation and Usage
+
+Copy the compiled `mb_MusicBeeWrapped.dll` to your MusicBee `Plugins` folder and restart MusicBee. The plugin begins tracking immediately without configuration.
+
+Access your yearly statistics through Tools → MusicBee Wrapped in the MusicBee menu. If multiple years of data exist, you'll first see a year selection interface. The generated report opens in your default browser and works offline.
+
+Navigation supports keyboard arrows, mouse clicks on navigation dots, or the navigation buttons. The interface is fully responsive for mobile viewing.
 
 ## Data Storage
 
-The plugin stores your listening data in:
-- **Windows**: `%APPDATA%\MusicBee\Plugins\MusicBeeWrapped\`
-- **Other platforms**: `~/.config/MusicBee/Plugins/MusicBeeWrapped/`
+Listening data is stored in platform-appropriate directories:
+- Windows: `%APPDATA%\MusicBee\Plugins\MusicBeeWrapped\`
+- Other platforms: `~/.config/MusicBee/Plugins/MusicBeeWrapped/`
 
-Data is organized by year with automatic backups and metadata caching for quick access.
+Data is organized by year with automatic metadata caching for quick year selection. The plugin handles data migration automatically when schema changes occur.
 
-## Technical Features
+## Architecture
 
-### Architecture
-- **Service-based architecture** with clear separation of concerns
-- **Real-time tracking** using MusicBee's event system
-- **XML persistence** with automatic data migration
-- **Memory-efficient** processing with lazy loading
-- **Comprehensive error handling** with graceful degradation
+The codebase follows a service-oriented architecture with clear separation between tracking, data persistence, analytics calculation, and UI generation.
 
-### Advanced Analytics Engine
-- **Obsession detection**: Identifies periods of intense listening to specific content
-- **Behavioral fingerprinting**: Analyzes your unique listening patterns
-- **Album session analysis**: Understands how you consume full albums vs individual tracks
-- **Temporal pattern mining**: Discovers your listening habits across different time periods
+**TrackingService** handles real-time music event capture with play validation. It implements the 5-second rule and manages session state to avoid duplicate tracking.
 
-### Web UI Technology
-- **Single-file HTML generation** with embedded CSS and JavaScript
-- **Canvas-based charting** for data visualization
-- **Progressive enhancement** with fallbacks for older browsers
-- **Cross-platform browser launching** with multiple fallback strategies
+**YearBasedDataService** manages data persistence using year-based file organization. This approach scales better than single-file storage and allows for efficient querying of historical data.
 
-## Building from Source
+**WrappedStatistics** contains the analytics engine. Beyond basic statistics, it implements obsession detection algorithms, album session analysis, and temporal pattern recognition.
 
-### Prerequisites
-- .NET Framework 4.7.2 or higher
-- Visual Studio 2019+ or .NET CLI
+**WebUIService** generates the complete web interface as a single HTML file with embedded assets. This approach eliminates external dependencies and ensures the generated reports work offline indefinitely.
 
-### Build Instructions
-```bash
+## Building
+
+Requires .NET Framework 4.7.2 or higher. Build with Visual Studio or the .NET CLI:
+
+```
 git clone https://github.com/yourusername/MusicBeeWrapped.git
 cd MusicBeeWrapped
 dotnet build -c Release
 ```
 
-The compiled plugin will be available in `bin/Release/mb_MusicBeeWrapped.dll`
+The compiled plugin is output to `bin/Release/mb_MusicBeeWrapped.dll`.
 
-## Development
+## Key Implementation Details
 
-### Project Structure
+**Obsession Detection**: Uses statistical analysis to identify periods where listening frequency exceeds normal patterns by a significant margin. The algorithm accounts for your baseline listening habits to avoid false positives.
+
+**Album Behavior Classification**: Analyzes listening sessions to determine whether you consume music as complete albums, individual tracks, or curated playlists. The classification affects how statistics are presented.
+
+**Temporal Analysis**: Correlates listening patterns with time-of-day, day-of-week, and seasonal data to identify behavioral trends most users aren't aware of.
+
+**Data Integrity**: Implements automatic backup creation before schema migrations, with rollback capability if issues occur during upgrades.
+
+The plugin maintains backwards compatibility with older data formats while migrating to newer schemas transparently.
+
+## Project Structure
+
 ```
-MusicBeeWrapped/
-├── Models/                 # Data models
-│   ├── AlbumListeningBehavior.cs
-│   └── ObsessionPeriod.cs
-├── Services/              # Core services
-│   ├── TrackingService.cs       # Real-time play tracking
-│   ├── WebUIService.cs          # Web interface generation
-│   ├── YearBasedDataService.cs  # Data persistence
-│   └── XmlDataService.cs        # XML utilities
-├── Class1.cs              # Main plugin entry point
-├── PlayHistory.cs         # Play data models
-├── WrappedStatistics.cs   # Statistics calculation
-└── MusicBeeInterface.cs   # MusicBee API bindings
+Models/                   # Data models and domain objects
+Services/                 # Core business logic
+  TrackingService.cs        # Real-time play detection
+  WebUIService.cs           # UI generation and browser integration  
+  YearBasedDataService.cs   # Data persistence and retrieval
+  XmlDataService.cs         # Serialization utilities
+Class1.cs                 # Plugin entry point and MusicBee integration
+PlayHistory.cs            # Play data models and validation
+WrappedStatistics.cs      # Analytics calculation engine
+MusicBeeInterface.cs      # Complete MusicBee API bindings
 ```
 
-### Key Components
-- **TrackingService**: Handles real-time music tracking with play validation
-- **WebUIService**: Generates the complete web-based user interface
-- **YearBasedDataService**: Manages year-organized data storage and retrieval
-- **WrappedStatistics**: Calculates all statistics and advanced analytics
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **MusicBee** for providing an excellent plugin API
-- **Spotify Wrapped** for inspiration on music analytics presentation
-- The open-source community for various libraries and techniques used
-
-## Screenshots
-
-### Year Selection
-Beautiful year selector with quick stats preview for each year of data.
-
-### Welcome Slide
-Animated introduction showing your total listening statistics.
-
-### Top Artists
-Your most-played artists with detailed play counts and smooth reveal animations.
-
-### Obsession Analysis
-Discover your musical obsessions - periods when you were completely consumed by specific artists, albums, or tracks.
-
-### Album Behavior
-Learn your listening personality - are you an Album Purist or a Track Shuffler?
-
-### Daily Activity Chart
-Interactive visualization of your daily listening patterns throughout the year.
-
----
-
-**Made with ❤️ for music lovers who want to understand their listening habits**
+This plugin demonstrates several patterns useful for MusicBee plugin development: proper event handling, cross-platform file management, and integration with external applications (web browsers) while maintaining plugin sandboxing.
