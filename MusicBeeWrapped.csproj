@@ -54,6 +54,9 @@
     <Compile Include="WrappedStatistics.cs" />
     <Compile Include="YearMetadata.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <!-- Model Classes -->
+    <Compile Include="Models\AlbumListeningBehavior.cs" />
+    <Compile Include="Models\ObsessionPeriod.cs" />
     <!-- Service Layer -->
     <Compile Include="Services\DataPathService.cs" />
     <Compile Include="Services\PlayHistoryService.cs" />
@@ -61,6 +64,30 @@
     <Compile Include="Services\WebUIService.cs" />
     <Compile Include="Services\YearBasedDataService.cs" />
     <Compile Include="Services\XmlDataService.cs" />
+    <!-- UI Layer -->
+    <Compile Include="Services\UI\DataSerializer.cs" />
+    <Compile Include="Services\UI\CssStyleProvider.cs" />
+    <Compile Include="Services\UI\JavaScriptProvider.cs" />
+    <Compile Include="Services\UI\HtmlTemplateBuilder.cs" />
+    <Compile Include="Services\UI\ModularWebUIService.cs" />
+    <Compile Include="Services\UI\SessionManager.cs" />
+    <Compile Include="Services\UI\BrowserLauncher.cs" />
+    <Compile Include="Services\UI\YearSelectorService.cs" />
+    <!-- Slide Components -->
+    <Compile Include="Services\UI\Slides\SlideComponentBase.cs" />
+    <!-- Welcome slide -->
+    <Compile Include="Services\UI\Slides\WelcomeSlide.cs" />
+    <!-- Spotify-style slides -->
+    <Compile Include="Services\UI\Slides\TopDayByMinutesSlide.cs" />
+    <Compile Include="Services\UI\Slides\TopSongSlide.cs" />
+    <Compile Include="Services\UI\Slides\TopTracksSlide.cs" />
+    <Compile Include="Services\UI\Slides\MonthHighlightsSlide.cs" />
+    <Compile Include="Services\UI\Slides\TopArtistsSlide.cs" />
+    <!-- Custom slides -->
+    <Compile Include="Services\UI\Slides\MusicalJourneySlide.cs" />
+    <Compile Include="Services\UI\Slides\DailyChartSlide.cs" />
+    <Compile Include="Services\UI\Slides\FinaleSlide.cs" />
+    <Compile Include="Services\UI\Slides\SlideManager.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
