@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MusicBeeWrapped.Models;
 
 namespace MusicBeeWrapped
 {
@@ -51,6 +52,10 @@ namespace MusicBeeWrapped
         public Dictionary<string, double> MonthlyListeningHours { get; private set; }
         public double WeekendVsWeekdayRatio { get; private set; }
         public List<KeyValuePair<string, int>> TopListeningSources { get; private set; }
+        
+        // Advanced analytics
+        public List<ObsessionPeriod> ObsessionPeriods { get; private set; }
+        public AlbumListeningBehavior AlbumBehavior { get; private set; }
 
         public WrappedStatistics(PlayHistory playHistory, int year)
         {
@@ -62,6 +67,10 @@ namespace MusicBeeWrapped
             CalculateStreaksAndPatterns(playsInYear, playHistory, year);
             CalculateDiscoveryMetrics(playsInYear, playHistory, year);
             CalculateEnhancedMetrics(playsInYear);
+            
+            // Advanced analytics
+            CalculateObsessionPeriods(playsInYear);
+            CalculateAlbumListeningBehavior(playsInYear);
         }
 
         private void CalculateBasicStats(List<TrackPlay> plays, int year)
@@ -289,6 +298,264 @@ namespace MusicBeeWrapped
             var weekdayMinutes = plays.Where(p => !p.IsWeekend).Sum(p => p.PlayDuration) / 60.0;
             
             WeekendVsWeekdayRatio = weekdayMinutes > 0 ? Math.Round(weekendMinutes / weekdayMinutes, 2) : 0;
+        }
+
+        /// <summary>
+        /// Detects obsession periods using simplified statistical analysis
+        /// </summary>
+        private void CalculateObsessionPeriods(List<TrackPlay> plays)
+        {
+            ObsessionPeriods = new List<ObsessionPeriod>();
+
+            // Detect artist obsessions
+            var artistObsessions = DetectArtistObsessions(plays);
+            ObsessionPeriods.AddRange(artistObsessions);
+
+            // Detect album obsessions
+            var albumObsessions = DetectAlbumObsessions(plays);
+            ObsessionPeriods.AddRange(albumObsessions);
+
+            // Detect track obsessions
+            var trackObsessions = DetectTrackObsessions(plays);
+            ObsessionPeriods.AddRange(trackObsessions);
+
+            // Sort by intensity score (highest first)
+            ObsessionPeriods = ObsessionPeriods.OrderByDescending(o => o.IntensityScore).ToList();
+        }
+
+        /// <summary>
+        /// Detects artist obsessions based on days with significantly higher play counts than normal
+        /// </summary>
+        private List<ObsessionPeriod> DetectArtistObsessions(List<TrackPlay> plays)
+        {
+            var obsessions = new List<ObsessionPeriod>();
+            
+            // Group: "How many times did I play each artist each day?"
+            var dailyStats = plays.GroupBy(p => new { Date = p.PlayedAt.Date, p.Artist })
+                                 .ToDictionary(g => g.Key, g => g.Count());
+            
+            // For each artist, what's their typical daily play count?
+            var artistAverages = dailyStats.GroupBy(kvp => kvp.Key.Artist)
+                                          .ToDictionary(g => g.Key, g => g.Average(x => x.Value));
+            
+            foreach (var artist in artistAverages.Keys)
+            {
+                var avgDaily = artistAverages[artist];
+                var threshold = Math.Max(3, avgDaily * 2.5); // At least 3 plays, or 2.5x normal
+                
+                // Find days exceeding threshold
+                var obsessionDays = dailyStats.Where(kvp => kvp.Key.Artist == artist && kvp.Value >= threshold)
+                                             .OrderBy(kvp => kvp.Key.Date)
+                                             .ToList();
+                
+                if (obsessionDays.Count >= 3) // At least 3 obsession days
+                {
+                    var totalPlays = obsessionDays.Sum(kvp => kvp.Value);
+                    var startDate = obsessionDays.First().Key.Date;
+                    var endDate = obsessionDays.Last().Key.Date;
+                    var intensity = (double)totalPlays / obsessionDays.Count;
+                    
+                    var obsession = new ObsessionPeriod
+                    {
+                        Artist = artist,
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        PlayCount = totalPlays,
+                        IntensityScore = intensity,
+                        ObsessionType = "Artist"
+                    };
+                    obsession.Description = obsession.GenerateDescription();
+                    obsessions.Add(obsession);
+                }
+            }
+            
+            return obsessions;
+        }
+
+        /// <summary>
+        /// Detects album obsessions based on same album played across multiple days
+        /// </summary>
+        private List<ObsessionPeriod> DetectAlbumObsessions(List<TrackPlay> plays)
+        {
+            var obsessions = new List<ObsessionPeriod>();
+            
+            // Group by album (Artist + Album combo) per day
+            var dailyAlbumStats = plays.Where(p => !string.IsNullOrEmpty(p.Album))
+                                      .GroupBy(p => new { Date = p.PlayedAt.Date, p.Artist, p.Album })
+                                      .ToDictionary(g => g.Key, g => g.Count());
+            
+            // Look for albums played 2+ times per day across 2+ days
+            var albumGroups = dailyAlbumStats.GroupBy(kvp => new { kvp.Key.Artist, kvp.Key.Album });
+            
+            foreach (var albumGroup in albumGroups)
+            {
+                var heavyDays = albumGroup.Where(kvp => kvp.Value >= 2) // 2+ plays in a day
+                                         .OrderBy(kvp => kvp.Key.Date)
+                                         .ToList();
+                
+                if (heavyDays.Count >= 2) // At least 2 heavy days
+                {
+                    var totalPlays = heavyDays.Sum(kvp => kvp.Value);
+                    var startDate = heavyDays.First().Key.Date;
+                    var endDate = heavyDays.Last().Key.Date;
+                    var intensity = (double)totalPlays / heavyDays.Count;
+                    
+                    var obsession = new ObsessionPeriod
+                    {
+                        Artist = albumGroup.Key.Artist,
+                        Album = albumGroup.Key.Album,
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        PlayCount = totalPlays,
+                        IntensityScore = intensity,
+                        ObsessionType = "Album"
+                    };
+                    obsession.Description = obsession.GenerateDescription();
+                    obsessions.Add(obsession);
+                }
+            }
+            
+            return obsessions;
+        }
+
+        /// <summary>
+        /// Detects track obsessions based on single tracks played repeatedly in a day
+        /// </summary>
+        private List<ObsessionPeriod> DetectTrackObsessions(List<TrackPlay> plays)
+        {
+            var obsessions = new List<ObsessionPeriod>();
+            
+            // Group by individual track per day
+            var dailyTrackStats = plays.GroupBy(p => new { Date = p.PlayedAt.Date, p.Artist, p.Title })
+                                      .ToDictionary(g => g.Key, g => g.Count());
+            
+            // Look for tracks played 5+ times in a single day
+            var trackObsessions = dailyTrackStats.Where(kvp => kvp.Value >= 5)
+                                                 .GroupBy(kvp => new { kvp.Key.Artist, kvp.Key.Title });
+            
+            foreach (var trackGroup in trackObsessions)
+            {
+                var obsessionDays = trackGroup.OrderBy(kvp => kvp.Key.Date).ToList();
+                var totalPlays = obsessionDays.Sum(kvp => kvp.Value);
+                var startDate = obsessionDays.First().Key.Date;
+                var endDate = obsessionDays.Last().Key.Date;
+                var intensity = (double)totalPlays / obsessionDays.Count;
+                
+                var obsession = new ObsessionPeriod
+                {
+                    Artist = trackGroup.Key.Artist,
+                    Track = trackGroup.Key.Title,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    PlayCount = totalPlays,
+                    IntensityScore = intensity,
+                    ObsessionType = "Track"
+                };
+                obsession.Description = obsession.GenerateDescription();
+                obsessions.Add(obsession);
+            }
+            
+            return obsessions;
+        }
+
+        /// <summary>
+        /// Analyzes how the user listens to albums - sequential vs. shuffled, full vs. partial
+        /// </summary>
+        private void CalculateAlbumListeningBehavior(List<TrackPlay> plays)
+        {
+            var albumSessions = DetectAlbumSessions(plays);
+            
+            AlbumBehavior = new AlbumListeningBehavior
+            {
+                TotalAlbumSessions = albumSessions.Count,
+                NotableAlbumSessions = albumSessions.OrderByDescending(s => s.TracksPlayed).Take(10).ToList()
+            };
+
+            if (albumSessions.Count > 0)
+            {
+                // Calculate full album percentage
+                var fullAlbumSessions = albumSessions.Where(s => s.IsComplete).Count();
+                AlbumBehavior.FullAlbumPercentage = Math.Round((double)fullAlbumSessions / albumSessions.Count * 100, 1);
+
+                // Calculate sequential listening percentage  
+                var sequentialSessions = albumSessions.Where(s => s.IsSequential).Count();
+                AlbumBehavior.SequentialListeningPercentage = Math.Round((double)sequentialSessions / albumSessions.Count * 100, 1);
+
+                // Calculate average tracks per session
+                AlbumBehavior.AverageTracksPerAlbumSession = Math.Round(albumSessions.Average(s => s.TracksPlayed), 1);
+            }
+
+            AlbumBehavior.DetermineListenerPersonality();
+        }
+
+        /// <summary>
+        /// Detects album listening sessions - periods where tracks from the same album were played close together
+        /// </summary>
+        private List<AlbumSession> DetectAlbumSessions(List<TrackPlay> plays)
+        {
+            var sessions = new List<AlbumSession>();
+            var albumPlays = plays.Where(p => !string.IsNullOrEmpty(p.Album))
+                                 .OrderBy(p => p.PlayedAt)
+                                 .ToList();
+
+            var currentSession = new AlbumSession();
+            var sessionThresholdMinutes = 30; // Max gap between tracks in same session
+
+            foreach (var play in albumPlays)
+            {
+                var albumKey = $"{play.Artist} - {play.Album}";
+                
+                // Check if this continues the current session
+                if (currentSession.Album == albumKey && 
+                    (play.PlayedAt - currentSession.EndTime).TotalMinutes <= sessionThresholdMinutes)
+                {
+                    // Continue current session
+                    currentSession.EndTime = play.PlayedAt;
+                    currentSession.TracksPlayed++;
+                }
+                else
+                {
+                    // Start new session (save previous if it had multiple tracks)
+                    if (currentSession.TracksPlayed > 1)
+                    {
+                        sessions.Add(currentSession);
+                    }
+                    
+                    currentSession = new AlbumSession
+                    {
+                        Album = play.Album,
+                        Artist = play.Artist,
+                        StartTime = play.PlayedAt,
+                        EndTime = play.PlayedAt,
+                        TracksPlayed = 1
+                    };
+                }
+            }
+
+            // Don't forget the last session
+            if (currentSession.TracksPlayed > 1)
+            {
+                sessions.Add(currentSession);
+            }
+
+            // Analyze each session for completeness and sequentiality
+            foreach (var session in sessions)
+            {
+                // Get all unique tracks from this album in our data
+                var albumTracks = plays.Where(p => p.Artist == session.Artist && p.Album == session.Album)
+                                      .Select(p => p.Title)
+                                      .Distinct()
+                                      .Count();
+                
+                session.TotalTracksInAlbum = albumTracks;
+                session.IsComplete = session.TracksPlayed >= albumTracks * 0.8; // 80% completion counts as "full"
+                
+                // Simple heuristic for sequential listening
+                // (In reality, we'd need track numbers, but this is a reasonable approximation)
+                session.IsSequential = session.TracksPlayed >= 3; // Assume 3+ tracks is likely sequential
+            }
+
+            return sessions;
         }
     }
 }
