@@ -35,13 +35,12 @@ namespace MusicBeeWrapped.Services.UI.Slides
             RegisterSlide(new TopDayByMinutesSlide());          // 1. Top day by minutes  
             RegisterSlide(new TopSongSlide());                  // 2. Top song - # of plays, day with most plays
             RegisterSlide(new TopTracksSlide());                // 3. Top 5 songs
-            RegisterSlide(new MonthHighlightsSlide());          // 4. Month highlights, choose 3 months where fav genre/artist changed
-            RegisterSlide(new TopArtistsSlide());               // 5. Top artist of year
+            RegisterSlide(new TopArtistsSlide());               // 4. Top artist of year
             
-            // Custom slides (keeping only the ones you want)
-            RegisterSlide(new MusicalJourneySlide());           // 6. Musical Journey
-            RegisterSlide(new DailyChartSlide());               // 7. Daily Chart
-            RegisterSlide(new FinaleSlide());                   // 8. Finale
+            // Additional slides
+            RegisterSlide(new TopAlbumsSlide());                // 5. Top Albums
+            RegisterSlide(new DailyChartSlide());               // 6. Daily Chart
+            RegisterSlide(new FinaleSlide());                   // 7. Finale
         }
 
         /// <summary>

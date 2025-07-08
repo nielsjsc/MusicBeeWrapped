@@ -81,10 +81,9 @@
     <Compile Include="Services\UI\Slides\TopDayByMinutesSlide.cs" />
     <Compile Include="Services\UI\Slides\TopSongSlide.cs" />
     <Compile Include="Services\UI\Slides\TopTracksSlide.cs" />
-    <Compile Include="Services\UI\Slides\MonthHighlightsSlide.cs" />
     <Compile Include="Services\UI\Slides\TopArtistsSlide.cs" />
-    <!-- Custom slides -->
-    <Compile Include="Services\UI\Slides\MusicalJourneySlide.cs" />
+    <!-- Additional slides -->
+    <Compile Include="Services\UI\Slides\TopAlbumsSlide.cs" />
     <Compile Include="Services\UI\Slides\DailyChartSlide.cs" />
     <Compile Include="Services\UI\Slides\FinaleSlide.cs" />
     <Compile Include="Services\UI\Slides\SlideManager.cs" />
