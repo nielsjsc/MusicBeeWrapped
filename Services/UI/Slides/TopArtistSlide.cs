@@ -77,7 +77,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 return $@"
                     <div class='favorite-album' data-index='{index}' data-album='{EscapeHtml(album.Album)}'>
                         <div class='album-cover'>
-                            <div class='album-icon'>💿</div>
+                            <div class='album-vinyl'></div>
                             <div class='album-hover-overlay'>
                                 <div class='album-play-icon'>▶</div>
                             </div>
@@ -111,14 +111,15 @@ namespace MusicBeeWrapped.Services.UI.Slides
                         <div class='artist-spotlight'>
                             <div class='artist-avatar'>
                                 <div class='avatar-circle'>
-                                    <div class='artist-initial'>{artistName.Substring(0, 1).ToUpper()}</div>
+                                    <div class='music-icon'>♪</div>
                                     <div class='pulse-ring'></div>
                                 </div>
                             </div>
                             
                             <div class='artist-details'>
-                                <h1 class='artist-name'>{EscapeHtml(artistName)}</h1>
+                                <h1 class='artist-name clickable-name'>{EscapeHtml(artistName)}</h1>
                                 <div class='artist-subtitle'>Your #{year} Musical Obsession</div>
+                                <div class='click-hint'>Click the name to explore more</div>
                                 <div class='artist-stats'>
                                     <div class='stat-item'>
                                         <div class='stat-number'>{totalPlays}</div>
@@ -136,12 +137,12 @@ namespace MusicBeeWrapped.Services.UI.Slides
                             </div>
                         </div>
                         
-                        <!-- Interactive sections -->
-                        <div class='artist-content'>
+                        <!-- Interactive sections - Hidden by default -->
+                        <div class='artist-content hidden'>
                             <!-- Favorite tracks section -->
                             <div class='content-section tracks-section'>
                                 <div class='section-header'>
-                                    <h3>🎵 Your Favorite Tracks</h3>
+                                    <h3>Your Favorite Tracks</h3>
                                     <p>The songs you couldn't stop playing</p>
                                 </div>
                                 <div class='favorite-tracks-list'>
@@ -152,7 +153,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                             <!-- Favorite albums section -->
                             <div class='content-section albums-section'>
                                 <div class='section-header'>
-                                    <h3>💿 Your Favorite Albums</h3>
+                                    <h3>Your Favorite Albums</h3>
                                     <p>Click an album to see your top tracks from it</p>
                                 </div>
                                 <div class='favorite-albums-grid'>
@@ -161,9 +162,6 @@ namespace MusicBeeWrapped.Services.UI.Slides
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Modal overlay for album details -->
-                    <div class='modal-overlay'></div>
                 </div>";
 
             return WrapInSlideContainer(content);
@@ -261,9 +259,8 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     box-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
                 }
 
-                .artist-initial {
+                .music-icon {
                     font-size: 3rem;
-                    font-weight: bold;
                     color: white;
                     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
                 }
@@ -293,12 +290,32 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
                     animation: shimmer 3s ease-in-out infinite;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+
+                .artist-name:hover {
+                    transform: scale(1.05);
+                    filter: drop-shadow(0 0 20px rgba(255, 107, 107, 0.5));
+                }
+
+                .click-hint {
+                    font-size: 0.9rem;
+                    color: rgba(255, 255, 255, 0.5);
+                    margin-bottom: 2rem;
+                    font-style: italic;
+                    opacity: 1;
+                    transition: opacity 0.3s ease;
+                }
+
+                .click-hint.hidden {
+                    opacity: 0;
                 }
 
                 .artist-subtitle {
                     font-size: 1.2rem;
                     color: rgba(255, 255, 255, 0.7);
-                    margin-bottom: 2rem;
+                    margin-bottom: 1rem;
                     font-weight: 300;
                 }
 
@@ -340,6 +357,18 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     display: flex;
                     gap: 3rem;
                     flex: 1;
+                    margin-top: 2rem;
+                    opacity: 1;
+                    transform: translateY(0);
+                    transition: all 0.5s ease;
+                }
+
+                .artist-content.hidden {
+                    opacity: 0;
+                    transform: translateY(30px);
+                    pointer-events: none;
+                    height: 0;
+                    overflow: hidden;
                 }
 
                 .content-section {
@@ -469,9 +498,37 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     overflow: hidden;
                 }
 
-                .album-icon {
-                    font-size: 2rem;
-                    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+                .album-vinyl {
+                    width: 60px;
+                    height: 60px;
+                    background: linear-gradient(45deg, #2c2c2c, #1a1a1a);
+                    border-radius: 50%;
+                    position: relative;
+                    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+                }
+
+                .album-vinyl::before {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    width: 8px;
+                    height: 8px;
+                    background: #ff6b6b;
+                    border-radius: 50%;
+                    transform: translate(-50%, -50%);
+                }
+
+                .album-vinyl::after {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    width: 30px;
+                    height: 30px;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 50%;
+                    transform: translate(-50%, -50%);
                 }
 
                 .album-hover-overlay {
@@ -526,11 +583,6 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     opacity: 0;
                     transition: all 0.3s ease;
                     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-                }
-
-                .album-tracks-popup.active {
-                    transform: translate(-50%, -50%) scale(1);
-                    opacity: 1;
                 }
 
                 .album-tracks-header {
@@ -593,24 +645,6 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 .album-track-plays {
                     color: #4ecdc4;
                     font-size: 0.9rem;
-                }
-
-                .modal-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: rgba(0, 0, 0, 0.7);
-                    z-index: 999;
-                    opacity: 0;
-                    visibility: hidden;
-                    transition: all 0.3s ease;
-                }
-
-                .modal-overlay.active {
-                    opacity: 1;
-                    visibility: visible;
                 }
 
                 /* Animations */
@@ -724,9 +758,29 @@ namespace MusicBeeWrapped.Services.UI.Slides
             return @"
                 // Top Artist Interactive Functionality
                 document.addEventListener('DOMContentLoaded', function() {
+                    const artistName = document.querySelector('.artist-name');
+                    const artistContent = document.querySelector('.artist-content');
+                    const clickHint = document.querySelector('.click-hint');
                     const albums = document.querySelectorAll('.favorite-album');
-                    const modalOverlay = document.querySelector('.modal-overlay');
                     
+                    let contentVisible = false;
+                    
+                    // Artist name click to show/hide content
+                    if (artistName && artistContent) {
+                        artistName.addEventListener('click', function() {
+                            contentVisible = !contentVisible;
+                            
+                            if (contentVisible) {
+                                artistContent.classList.remove('hidden');
+                                clickHint.classList.add('hidden');
+                            } else {
+                                artistContent.classList.add('hidden');
+                                clickHint.classList.remove('hidden');
+                            }
+                        });
+                    }
+                    
+                    // Album click functionality (no modal overlay)
                     albums.forEach(album => {
                         album.addEventListener('click', function() {
                             const popup = this.querySelector('.album-tracks-popup');
@@ -734,31 +788,30 @@ namespace MusicBeeWrapped.Services.UI.Slides
                             
                             // Close any other open popups
                             document.querySelectorAll('.album-tracks-popup.active').forEach(p => {
-                                p.classList.remove('active');
+                                if (p !== popup) {
+                                    p.classList.remove('active');
+                                }
                             });
                             
-                            // Show modal overlay
-                            modalOverlay.classList.add('active');
-                            
-                            // Show this popup
-                            popup.classList.add('active');
+                            // Toggle this popup
+                            popup.classList.toggle('active');
                             
                             // Add close functionality
                             const closeBtn = popup.querySelector('.close-popup');
                             closeBtn.addEventListener('click', function(e) {
                                 e.stopPropagation();
                                 popup.classList.remove('active');
-                                modalOverlay.classList.remove('active');
                             });
                         });
                     });
                     
-                    // Close popup when clicking overlay
-                    modalOverlay.addEventListener('click', function() {
-                        document.querySelectorAll('.album-tracks-popup.active').forEach(popup => {
-                            popup.classList.remove('active');
-                        });
-                        this.classList.remove('active');
+                    // Close popup when clicking outside
+                    document.addEventListener('click', function(e) {
+                        if (!e.target.closest('.favorite-album')) {
+                            document.querySelectorAll('.album-tracks-popup.active').forEach(popup => {
+                                popup.classList.remove('active');
+                            });
+                        }
                     });
                     
                     // Avatar click animation
@@ -780,11 +833,13 @@ namespace MusicBeeWrapped.Services.UI.Slides
                             if (!this.querySelector('.sparkle')) {
                                 const sparkle = document.createElement('div');
                                 sparkle.className = 'sparkle';
-                                sparkle.innerHTML = '✨';
+                                sparkle.innerHTML = '*';
                                 sparkle.style.position = 'absolute';
                                 sparkle.style.top = '5px';
                                 sparkle.style.right = '5px';
-                                sparkle.style.fontSize = '0.8rem';
+                                sparkle.style.fontSize = '1.2rem';
+                                sparkle.style.color = '#4ecdc4';
+                                sparkle.style.fontWeight = 'bold';
                                 sparkle.style.animation = 'sparkleAnim 1s ease-out';
                                 this.style.position = 'relative';
                                 this.appendChild(sparkle);
