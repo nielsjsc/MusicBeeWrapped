@@ -82,6 +82,7 @@
     <Compile Include="Services\UI\Slides\TopSongSlide.cs" />
     <Compile Include="Services\UI\Slides\TopTracksSlide.cs" />
     <Compile Include="Services\UI\Slides\TopArtistsSlide.cs" />
+    <Compile Include="Services\UI\Slides\TopArtistSlide.cs" />
     <!-- Additional slides -->
     <Compile Include="Services\UI\Slides\TopAlbumsSlide.cs" />
     <Compile Include="Services\UI\Slides\DailyChartSlide.cs" />
