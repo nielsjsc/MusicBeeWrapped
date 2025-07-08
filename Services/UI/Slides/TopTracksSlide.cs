@@ -37,48 +37,36 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 var playCount = track.Value;
                 
                 return $@"
-                    <div class='track-item' data-delay='{index * 150}' data-plays='{playCount}'>
-                        <div class='track-rank'>#{index + 1}</div>
-                        <div class='track-info'>
-                            <div class='track-title'>{EscapeHtml(title)}</div>
-                            <div class='track-artist'>{EscapeHtml(artist)}</div>
+                    <div class='constellation-track' data-index='{index}' data-plays='{playCount}'>
+                        <div class='track-star'></div>
+                        <div class='track-content'>
+                            <div class='track-rank'>#{index + 1}</div>
+                            <div class='track-details'>
+                                <div class='track-title'>{EscapeHtml(title)}</div>
+                                <div class='track-artist'>{EscapeHtml(artist)}</div>
+                                <div class='track-plays'>{playCount} plays</div>
+                            </div>
                         </div>
-                        <div class='play-count-tooltip'>{playCount} plays</div>
+                        <div class='constellation-line'></div>
                     </div>";
             }));
 
             var content = $@"
-                <div class='night-sky-container'>
-                    <!-- Night sky background -->
-                    <div class='night-sky'>
-                        <!-- Stars -->
-                        <div class='star star-1'></div>
-                        <div class='star star-2'></div>
-                        <div class='star star-3'></div>
-                        <div class='star star-4'></div>
-                        <div class='star star-5'></div>
-                        <div class='star star-6'></div>
-                        <div class='star star-7'></div>
-                        <div class='star star-8'></div>
-                        <div class='star star-9'></div>
-                        <div class='star star-10'></div>
-                        
-                        <!-- Comets -->
-                        <div class='comet comet-1'></div>
-                        <div class='comet comet-2'></div>
-                        
-                        <!-- Mountains silhouette -->
-                        <div class='mountains'></div>
+                <div class='constellation-container'>
+                    <!-- Animated background -->
+                    <div class='cosmic-background'>
+                        <div class='floating-particles'></div>
+                        <div class='nebula-glow'></div>
                     </div>
                     
                     <!-- Content -->
-                    <div class='content-overlay'>
-                        <div class='slide-header'>
-                            <h2>Your Top Tracks</h2>
-                            <p>The songs that soundtracked your year</p>
+                    <div class='constellation-content'>
+                        <div class='constellation-header'>
+                            <h1 class='constellation-title'>Your Musical Constellation</h1>
+                            <p class='constellation-subtitle'>The tracks that lit up your {year}</p>
                         </div>
                         
-                        <div class='tracks-list'>
+                        <div class='constellation-tracks'>
                             {tracksHTML}
                         </div>
                     </div>
@@ -160,6 +148,287 @@ namespace MusicBeeWrapped.Services.UI.Slides
             return base.CanRender(stats, playHistory) && 
                    stats.TopTracks != null && 
                    stats.TopTracks.Any();
+        }
+
+        public override string GenerateCSS()
+        {
+            return @"
+                .constellation-container {
+                    position: relative;
+                    width: 100%;
+                    height: 100vh;
+                    background: linear-gradient(135deg, #0a0a2e 0%, #16213e 50%, #1a1a3a 100%);
+                    overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .cosmic-background {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 1;
+                }
+
+                .floating-particles::before {
+                    content: '';
+                    position: absolute;
+                    width: 100%;
+                    height: 100%;
+                    background-image: 
+                        radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.8), transparent),
+                        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.6), transparent),
+                        radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.9), transparent),
+                        radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.7), transparent),
+                        radial-gradient(2px 2px at 160px 30px, rgba(255,255,255,0.8), transparent);
+                    background-size: 200px 100px;
+                    animation: float 20s linear infinite;
+                }
+
+                .nebula-glow {
+                    position: absolute;
+                    top: 20%;
+                    left: 10%;
+                    width: 300px;
+                    height: 200px;
+                    background: radial-gradient(ellipse, rgba(138, 43, 226, 0.3) 0%, transparent 70%);
+                    border-radius: 50%;
+                    animation: pulse 8s ease-in-out infinite;
+                }
+
+                .constellation-content {
+                    position: relative;
+                    z-index: 2;
+                    max-width: 800px;
+                    width: 90%;
+                    margin: 0 auto;
+                    text-align: center;
+                }
+
+                .constellation-header {
+                    margin-bottom: 4rem;
+                    animation: fadeInUp 1s ease-out;
+                }
+
+                .constellation-title {
+                    font-size: 3.5rem;
+                    font-weight: 300;
+                    background: linear-gradient(45deg, #ffffff, #b19cd9, #ffffff);
+                    background-size: 200% 200%;
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    animation: shimmer 3s ease-in-out infinite;
+                    margin-bottom: 1rem;
+                    letter-spacing: 2px;
+                }
+
+                .constellation-subtitle {
+                    font-size: 1.2rem;
+                    color: rgba(255, 255, 255, 0.7);
+                    font-weight: 300;
+                    letter-spacing: 1px;
+                }
+
+                .constellation-tracks {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 2rem;
+                    margin-top: 3rem;
+                }
+
+                .constellation-track {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    width: 100%;
+                    max-width: 600px;
+                    opacity: 0;
+                    transform: translateX(-50px);
+                    animation: slideInTrack 0.8s ease-out forwards;
+                }
+
+                .constellation-track:nth-child(1) { animation-delay: 0.2s; }
+                .constellation-track:nth-child(2) { animation-delay: 0.4s; }
+                .constellation-track:nth-child(3) { animation-delay: 0.6s; }
+                .constellation-track:nth-child(4) { animation-delay: 0.8s; }
+                .constellation-track:nth-child(5) { animation-delay: 1.0s; }
+
+                .track-star {
+                    width: 16px;
+                    height: 16px;
+                    background: linear-gradient(45deg, #ffd700, #ffed4e);
+                    border-radius: 50%;
+                    position: relative;
+                    margin-right: 1.5rem;
+                    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+                    animation: twinkle 2s ease-in-out infinite;
+                }
+
+                .track-star::before,
+                .track-star::after {
+                    content: '';
+                    position: absolute;
+                    background: linear-gradient(45deg, #ffd700, #ffed4e);
+                    border-radius: 50%;
+                }
+
+                .track-star::before {
+                    width: 4px;
+                    height: 20px;
+                    top: -2px;
+                    left: 6px;
+                }
+
+                .track-star::after {
+                    width: 20px;
+                    height: 4px;
+                    top: 6px;
+                    left: -2px;
+                }
+
+                .track-content {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    gap: 1.5rem;
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 1.5rem 2rem;
+                    border-radius: 20px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    backdrop-filter: blur(10px);
+                    transition: all 0.3s ease;
+                }
+
+                .track-content:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-color: rgba(255, 255, 255, 0.2);
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+                }
+
+                .track-rank {
+                    font-size: 2rem;
+                    font-weight: 600;
+                    color: #ffd700;
+                    min-width: 50px;
+                    text-align: center;
+                    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+                }
+
+                .track-details {
+                    flex: 1;
+                    text-align: left;
+                }
+
+                .track-title {
+                    font-size: 1.3rem;
+                    font-weight: 600;
+                    color: #ffffff;
+                    margin-bottom: 0.3rem;
+                    line-height: 1.2;
+                }
+
+                .track-artist {
+                    font-size: 1rem;
+                    color: rgba(255, 255, 255, 0.7);
+                    margin-bottom: 0.3rem;
+                    font-weight: 300;
+                }
+
+                .track-plays {
+                    font-size: 0.9rem;
+                    color: #b19cd9;
+                    font-weight: 500;
+                }
+
+                .constellation-line {
+                    position: absolute;
+                    right: -30px;
+                    top: 50%;
+                    width: 60px;
+                    height: 1px;
+                    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), transparent);
+                }
+
+                .constellation-track:last-child .constellation-line {
+                    display: none;
+                }
+
+                @keyframes slideInTrack {
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+
+                @keyframes twinkle {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.7; transform: scale(1.1); }
+                }
+
+                @keyframes shimmer {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+
+                @keyframes float {
+                    0% { transform: translateY(0px); }
+                    50% { transform: translateY(-10px); }
+                    100% { transform: translateY(0px); }
+                }
+
+                @keyframes pulse {
+                    0%, 100% { opacity: 0.3; transform: scale(1); }
+                    50% { opacity: 0.5; transform: scale(1.1); }
+                }
+
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                /* Responsive design */
+                @media (max-width: 768px) {
+                    .constellation-title {
+                        font-size: 2.5rem;
+                    }
+                    
+                    .constellation-subtitle {
+                        font-size: 1rem;
+                    }
+                    
+                    .track-content {
+                        padding: 1rem 1.5rem;
+                        flex-direction: column;
+                        text-align: center;
+                        gap: 1rem;
+                    }
+                    
+                    .track-details {
+                        text-align: center;
+                    }
+                    
+                    .track-rank {
+                        font-size: 1.5rem;
+                    }
+                    
+                    .track-title {
+                        font-size: 1.1rem;
+                    }
+                }
+            ";
         }
     }
 }
