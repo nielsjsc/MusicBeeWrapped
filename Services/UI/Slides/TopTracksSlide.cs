@@ -62,7 +62,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     <!-- Content -->
                     <div class='constellation-content'>
                         <div class='constellation-header'>
-                            <h1 class='constellation-title'>Your Musical Constellation</h1>
+                            <h1 class='constellation-title'>Your Top Songs</h1>
                             <p class='constellation-subtitle'>The tracks that lit up your {year}</p>
                         </div>
                         
@@ -209,12 +209,12 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 }
 
                 .constellation-header {
-                    margin-bottom: 4rem;
+                    margin-bottom: 2rem;
                     animation: fadeInUp 1s ease-out;
                 }
 
                 .constellation-title {
-                    font-size: 3.5rem;
+                    font-size: 2.5rem;
                     font-weight: 300;
                     background: linear-gradient(45deg, #ffffff, #b19cd9, #ffffff);
                     background-size: 200% 200%;
@@ -222,12 +222,12 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
                     animation: shimmer 3s ease-in-out infinite;
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.5rem;
                     letter-spacing: 2px;
                 }
 
                 .constellation-subtitle {
-                    font-size: 1.2rem;
+                    font-size: 1rem;
                     color: rgba(255, 255, 255, 0.7);
                     font-weight: 300;
                     letter-spacing: 1px;
@@ -237,8 +237,8 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    gap: 2rem;
-                    margin-top: 3rem;
+                    gap: 1rem;
+                    margin-top: 1.5rem;
                 }
 
                 .constellation-track {
@@ -246,7 +246,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     display: flex;
                     align-items: center;
                     width: 100%;
-                    max-width: 600px;
+                    max-width: 550px;
                     opacity: 0;
                     transform: translateX(-50px);
                     animation: slideInTrack 0.8s ease-out forwards;
@@ -259,13 +259,13 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 .constellation-track:nth-child(5) { animation-delay: 1.0s; }
 
                 .track-star {
-                    width: 16px;
-                    height: 16px;
+                    width: 12px;
+                    height: 12px;
                     background: linear-gradient(45deg, #ffd700, #ffed4e);
                     border-radius: 50%;
                     position: relative;
-                    margin-right: 1.5rem;
-                    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+                    margin-right: 1rem;
+                    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
                     animation: twinkle 2s ease-in-out infinite;
                 }
 
@@ -278,27 +278,27 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 }
 
                 .track-star::before {
-                    width: 4px;
-                    height: 20px;
-                    top: -2px;
-                    left: 6px;
+                    width: 3px;
+                    height: 15px;
+                    top: -1.5px;
+                    left: 4.5px;
                 }
 
                 .track-star::after {
-                    width: 20px;
-                    height: 4px;
-                    top: 6px;
-                    left: -2px;
+                    width: 15px;
+                    height: 3px;
+                    top: 4.5px;
+                    left: -1.5px;
                 }
 
                 .track-content {
                     flex: 1;
                     display: flex;
                     align-items: center;
-                    gap: 1.5rem;
+                    gap: 1rem;
                     background: rgba(255, 255, 255, 0.05);
-                    padding: 1.5rem 2rem;
-                    border-radius: 20px;
+                    padding: 0.8rem 1.2rem;
+                    border-radius: 15px;
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     backdrop-filter: blur(10px);
                     transition: all 0.3s ease;
@@ -312,10 +312,10 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 }
 
                 .track-rank {
-                    font-size: 2rem;
+                    font-size: 1.4rem;
                     font-weight: 600;
                     color: #ffd700;
-                    min-width: 50px;
+                    min-width: 40px;
                     text-align: center;
                     text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
                 }
@@ -326,22 +326,22 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 }
 
                 .track-title {
-                    font-size: 1.3rem;
+                    font-size: 1rem;
                     font-weight: 600;
                     color: #ffffff;
-                    margin-bottom: 0.3rem;
+                    margin-bottom: 0.2rem;
                     line-height: 1.2;
                 }
 
                 .track-artist {
-                    font-size: 1rem;
+                    font-size: 0.85rem;
                     color: rgba(255, 255, 255, 0.7);
-                    margin-bottom: 0.3rem;
+                    margin-bottom: 0.2rem;
                     font-weight: 300;
                 }
 
                 .track-plays {
-                    font-size: 0.9rem;
+                    font-size: 0.75rem;
                     color: #b19cd9;
                     font-weight: 500;
                 }
@@ -402,18 +402,18 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 /* Responsive design */
                 @media (max-width: 768px) {
                     .constellation-title {
-                        font-size: 2.5rem;
+                        font-size: 2rem;
                     }
                     
                     .constellation-subtitle {
-                        font-size: 1rem;
+                        font-size: 0.9rem;
                     }
                     
                     .track-content {
-                        padding: 1rem 1.5rem;
+                        padding: 0.6rem 1rem;
                         flex-direction: column;
                         text-align: center;
-                        gap: 1rem;
+                        gap: 0.8rem;
                     }
                     
                     .track-details {
@@ -421,11 +421,11 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     }
                     
                     .track-rank {
-                        font-size: 1.5rem;
+                        font-size: 1.2rem;
                     }
                     
                     .track-title {
-                        font-size: 1.1rem;
+                        font-size: 0.9rem;
                     }
                 }
             ";
