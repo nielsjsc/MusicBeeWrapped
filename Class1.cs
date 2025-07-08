@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Threading;
 using MusicBeePlugin.Services;
-using MusicBeeWrapped.Services;
+using MusicBeeWrapped.Services.UI;
 
 namespace MusicBeePlugin
 {
@@ -17,7 +17,7 @@ namespace MusicBeePlugin
         
         // Service layer
         private TrackingService trackingService;
-        private WebUIService webUIService;
+        private ModularWebUIService modularWebUIService;
         private YearBasedDataService yearBasedDataService;
         
         // Timer for periodic checks (5-second rule enforcement)
@@ -75,13 +75,13 @@ namespace MusicBeePlugin
             
             // Create service instances using the new XML-based system
             trackingService = new TrackingService(this, yearBasedDataService);
-            webUIService = new WebUIService(yearBasedDataService);
+            modularWebUIService = new ModularWebUIService(yearBasedDataService);
             
             // Initialize tracking service
             trackingService.Initialize();
             
             // Cleanup old web UI sessions
-            webUIService.CleanupOldSessions();
+            modularWebUIService.CleanupOldSessions();
             
             // Start periodic check timer (runs every second to check 5-second rule)
             periodicCheckTimer = new Timer(PeriodicCheckCallback, null, 1000, 1000); // 1 second intervals
@@ -143,7 +143,7 @@ namespace MusicBeePlugin
                 mbApiInterface.MB_Trace($"Generated statistics for {year}: {playHistory.Plays.Count} total plays");
                 
                 // Generate and launch web UI
-                bool success = webUIService.GenerateWrappedUI(stats, playHistory, year);
+                bool success = modularWebUIService.GenerateWrappedUI(stats, playHistory, year);
                 
                 if (success)
                 {
@@ -174,7 +174,7 @@ namespace MusicBeePlugin
                 var metadata = yearBasedDataService.GetMetadata();
                 
                 // Generate year selector UI
-                bool success = webUIService.GenerateYearSelectorUI(availableYears, metadata);
+                bool success = modularWebUIService.GenerateYearSelectorUI(availableYears, metadata);
                 
                 if (success)
                 {
