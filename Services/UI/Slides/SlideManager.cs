@@ -35,9 +35,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
             RegisterSlide(new TopDayByMinutesSlide());          // 1. Top day by minutes  
             RegisterSlide(new TopSongSlide());                  // 2. Top song - # of plays, day with most plays
             RegisterSlide(new TopTracksSlide());                // 3. Top 5 songs
-            RegisterSlide(new TopArtistsSlide());               // 4. Top 5 artists
-            RegisterSlide(new TopArtistSlide());                // 5. Interactive top artist showcase
-            
+            RegisterSlide(new TopArtistsSlide());               // 4. Top 5 artists            
             // Additional slides
             RegisterSlide(new TopAlbumsSlide());                // 6. Top Albums
             RegisterSlide(new DailyChartSlide());               // 7. Daily Chart
