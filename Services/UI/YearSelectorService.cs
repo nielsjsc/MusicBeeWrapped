@@ -51,6 +51,9 @@ namespace MusicBeeWrapped.Services.UI
                     return GenerateDirectWrapped(availableYears.First());
                 }
 
+                // Create session first - all files will be written to this session
+                var sessionPath = _sessionManager.CreateSession();
+
                 // Generate wrapped HTML for each year in background
                 GenerateWrappedForAvailableYears(availableYears);
 
@@ -58,8 +61,7 @@ namespace MusicBeeWrapped.Services.UI
                 var metadata = _dataService.GetMetadata();
                 var yearSelectorHtml = _templateBuilder.CreateYearSelectorTemplate(availableYears, metadata);
 
-                // Create session and write files
-                var sessionPath = _sessionManager.CreateSession();
+                // Write year selector file to the same session
                 var yearSelectorFile = _sessionManager.WriteSessionFile("year_selector.html", yearSelectorHtml);
 
                 // Schedule cleanup
@@ -102,8 +104,8 @@ namespace MusicBeeWrapped.Services.UI
                 // Generate statistics
                 var stats = new WrappedStatistics(playHistory, year);
                 
-                // Create HTML
-                var wrappedHtml = _templateBuilder.CreateMainTemplate(stats, playHistory, year);
+                // Create HTML using slide-based template
+                var wrappedHtml = _templateBuilder.CreateSlideBasedTemplate(stats, playHistory, year);
                 
                 // Create session and write file
                 var sessionPath = _sessionManager.CreateSession();
@@ -286,7 +288,7 @@ namespace MusicBeeWrapped.Services.UI
                     if (playHistory != null && playHistory.Plays.Count > 0)
                     {
                         var stats = new WrappedStatistics(playHistory, year);
-                        var wrappedHtml = _templateBuilder.CreateMainTemplate(stats, playHistory, year);
+                        var wrappedHtml = _templateBuilder.CreateSlideBasedTemplate(stats, playHistory, year);
                         _sessionManager.WriteSessionFile($"wrapped_{year}.html", wrappedHtml);
                         
                         System.Diagnostics.Debug.WriteLine($"Generated wrapped for year {year} with {playHistory.Plays.Count} plays");

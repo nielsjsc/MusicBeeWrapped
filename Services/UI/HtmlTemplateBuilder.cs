@@ -32,19 +32,7 @@ namespace MusicBeeWrapped.Services.UI
         /// <param name="playHistory">Play history for additional context</param>
         /// <param name="year">Target year for the wrapped</param>
         /// <returns>Complete HTML document as string</returns>
-        public string CreateMainTemplate(WrappedStatistics stats, PlayHistory playHistory, int year)
-        {
-            var html = new StringBuilder();
 
-            html.AppendLine(CreateDocumentHeader(year, "Your Music Wrapped"));
-            html.AppendLine(CreateMainBody());
-            html.AppendLine(CreateNavigationControls());
-            html.AppendLine(CreateDataScript(stats, playHistory, year));
-            html.AppendLine(CreateMainScript());
-            html.AppendLine(CreateDocumentFooter());
-
-            return html.ToString();
-        }
 
         /// <summary>
         /// Creates the HTML document for the year selector interface
@@ -64,6 +52,39 @@ namespace MusicBeeWrapped.Services.UI
 
             return html.ToString();
         }
+
+        /// <summary>
+        /// Creates the complete HTML document for the main wrapped interface using the slide system
+        /// This is the modern version that uses SlideManager for component-based slides
+        /// </summary>
+        /// <param name="stats">Wrapped statistics data</param>
+        /// <param name="playHistory">Play history for additional context</param>
+        /// <param name="year">Target year for the wrapped</param>
+        /// <returns>Complete HTML document as string</returns>
+       public string CreateSlideBasedTemplate(WrappedStatistics stats, PlayHistory playHistory, int year)
+            {
+                var slideManager = new MusicBeeWrapped.Services.UI.Slides.SlideManager();
+                var activeSlides = slideManager.PrepareSlides(stats, playHistory);
+                
+                var html = new StringBuilder();
+
+                // Create document header with embedded slide CSS
+                html.AppendLine(CreateSlideBasedDocumentHeader(year, slideManager));
+                
+                // Use CreateMainBodyWithSlides instead of CreateMainBody + separate slide generation
+                html.AppendLine(CreateMainBodyWithSlides(activeSlides, stats, playHistory, year));
+                
+                html.AppendLine(CreateNavigationControls());
+                html.AppendLine(CreateDataScript(stats, playHistory, year));
+                html.AppendLine(CreateSlideBasedMainScript(slideManager, stats, year));
+
+                // Inject a JS error display at the end of the body for debugging
+                html.AppendLine("    <script>\nwindow.onerror = function(msg, url, line, col, error) {\n    var errBox = document.getElementById('js-error-box');\n    if (!errBox) {\n        errBox = document.createElement('pre');\n        errBox.id = 'js-error-box';\n        errBox.style.background = 'rgba(255,0,0,0.15)';\n        errBox.style.color = '#ff3333';\n        errBox.style.padding = '1em';\n        errBox.style.margin = '1em';\n        errBox.style.fontSize = '1em';\n        errBox.style.whiteSpace = 'pre-wrap';\n        errBox.style.zIndex = 9999;\n        document.body.appendChild(errBox);\n    }\n    errBox.textContent = 'JS Error: ' + msg + '\n' + url + ':' + line + ':' + col + (error ? ('\n' + error.stack) : '');\n    return false;\n};\n</script>");
+
+                html.AppendLine(CreateDocumentFooter());
+
+                return html.ToString();
+            }
 
         /// <summary>
         /// Creates the HTML document header with meta tags, title, and embedded CSS
@@ -103,6 +124,33 @@ namespace MusicBeeWrapped.Services.UI
         }
 
         /// <summary>
+        /// Creates the document header specifically for slide-based templates
+        /// Includes both base CSS and slide-specific CSS
+        /// </summary>
+        private string CreateSlideBasedDocumentHeader(int year, MusicBeeWrapped.Services.UI.Slides.SlideManager slideManager)
+        {
+            var header = new StringBuilder();
+
+            header.AppendLine("<!DOCTYPE html>");
+            header.AppendLine("<html lang=\"en\">");
+            header.AppendLine("<head>");
+            header.AppendLine("    <meta charset=\"UTF-8\">");
+            header.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            header.AppendLine("    <meta name=\"description\" content=\"MusicBee Wrapped - Your personal music listening statistics and insights\">");
+            header.AppendLine("    <meta name=\"author\" content=\"MusicBee Wrapped Plugin\">");
+            header.AppendLine($"    <title>{year} Your Music Wrapped - MusicBee Wrapped</title>");
+            
+            // Embedded CSS - combine base styles with slide-specific styles
+            header.AppendLine("    <style>");
+            header.AppendLine(_cssProvider.GetMainInterfaceCSS());
+            header.AppendLine(slideManager.GenerateAllSlideCSS());
+            header.AppendLine("    </style>");
+            header.AppendLine("</head>");
+
+            return header.ToString();
+        }
+
+        /// <summary>
         /// Creates the main body structure for the wrapped interface
         /// Includes app container, loading screen, and initial slide structure
         /// </summary>
@@ -119,6 +167,52 @@ namespace MusicBeeWrapped.Services.UI
             body.AppendLine("                <div class=\"loading-spinner\"></div>");
             body.AppendLine("            </div>");
             body.AppendLine("        </div>");
+            body.AppendLine("    </div>");
+
+            return body.ToString();
+        }
+
+        /// <summary>
+        /// Creates the main body with slide HTML included
+        /// </summary>
+        private string CreateMainBodyWithSlides(System.Collections.Generic.List<MusicBeeWrapped.Services.UI.Slides.SlideComponentBase> activeSlides, WrappedStatistics stats, PlayHistory playHistory, int year)
+        {
+            var body = new StringBuilder();
+
+            body.AppendLine("<body>");
+            body.AppendLine("    <div id=\"app\">");
+            
+            // Loading screen - mark it as temporary and not part of navigation
+            body.AppendLine("        <div id=\"loading\" class=\"slide loading-slide\" style=\"display: none;\">");
+            body.AppendLine("            <div class=\"loading-content\">");
+            body.AppendLine("                <h1>🎵 Generating Your Music Wrapped...</h1>");
+            body.AppendLine("                <div class=\"loading-spinner\"></div>");
+            body.AppendLine("            </div>");
+            body.AppendLine("        </div>");
+            
+            // Generate slide HTML - make first slide active
+            bool isFirstSlide = true;
+            foreach (var slide in activeSlides)
+            {
+                try
+                {
+                    var slideHtml = slide.GenerateHTML(stats, playHistory, year);
+                    
+                    // Ensure first slide is active
+                    if (isFirstSlide)
+                    {
+                        slideHtml = slideHtml.Replace("class=\"slide\"", "class=\"slide active\"");
+                        isFirstSlide = false;
+                    }
+                    
+                    body.AppendLine(slideHtml);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error generating HTML for slide {slide.SlideId}: {ex.Message}");
+                }
+            }
+            
             body.AppendLine("    </div>");
 
             return body.ToString();
@@ -185,7 +279,8 @@ namespace MusicBeeWrapped.Services.UI
         {
             var card = new StringBuilder();
 
-            card.AppendLine($"        <a href=\"wrapped_{year}.html\" class=\"year-card\" data-year=\"{year}\" tabindex=\"0\">");
+            // Use explicit navigation to force a full page reload and avoid SPA/JS navigation issues
+            card.AppendLine($"        <a href=\"wrapped_{year}.html\" class=\"year-card\" data-year=\"{year}\" tabindex=\"0\" target=\"_self\" rel=\"noopener\">" );
             card.AppendLine($"            <div class=\"year-title\">{year}</div>");
             card.AppendLine("            <div class=\"year-stats\">");
             card.AppendLine("                <div class=\"year-stat\">");
@@ -345,6 +440,48 @@ namespace MusicBeeWrapped.Services.UI
             html.AppendLine("</html>");
 
             return html.ToString();
+        }
+
+        /// <summary>
+        /// Creates document header for slide-based templates
+        /// </summary>
+        private string CreateDocumentHeaderWithSlides(int year, MusicBeeWrapped.Services.UI.Slides.SlideManager slideManager)
+        {
+            var header = new StringBuilder();
+
+            header.AppendLine("<!DOCTYPE html>");
+            header.AppendLine("<html lang=\"en\">");
+            header.AppendLine("<head>");
+            header.AppendLine("    <meta charset=\"UTF-8\">");
+            header.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+            header.AppendLine("    <meta name=\"description\" content=\"MusicBee Wrapped - Your personal music listening statistics and insights\">");
+            header.AppendLine("    <meta name=\"author\" content=\"MusicBee Wrapped Plugin\">");
+            header.AppendLine($"    <title>{year} Your Music Wrapped - MusicBee Wrapped</title>");
+            
+            // Embedded CSS - base styles plus slide-specific styles
+            header.AppendLine("    <style>");
+            header.AppendLine(_cssProvider.GetMainInterfaceCSS());
+            header.AppendLine(slideManager.GenerateAllSlideCSS());
+            header.AppendLine("    </style>");
+            header.AppendLine("</head>");
+
+            return header.ToString();
+        }
+
+        /// <summary>
+        /// Creates script section for slide-based templates
+        /// </summary>
+        private string CreateSlideBasedMainScript(MusicBeeWrapped.Services.UI.Slides.SlideManager slideManager, WrappedStatistics stats, int year)
+        {
+            var script = new StringBuilder();
+
+            script.AppendLine("    <script>");
+            script.AppendLine(slideManager.GenerateSlideNavigationData());
+            script.AppendLine(_jsProvider.GetMainInterfaceJS());
+            script.AppendLine(slideManager.GenerateAllSlideJavaScript(stats, year));
+            script.AppendLine("    </script>");
+
+            return script.ToString();
         }
     }
 }

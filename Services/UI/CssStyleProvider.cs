@@ -257,7 +257,7 @@ namespace MusicBeeWrapped.Services.UI
         .progress-fill.animate {
             width: var(--progress-width);
         }
-        }
+        
 
         /* Top Lists Styling */
         .top-list {

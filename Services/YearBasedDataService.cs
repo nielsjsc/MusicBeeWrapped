@@ -60,6 +60,7 @@ namespace MusicBeePlugin.Services
         {
             return GetYearData(_currentYear);
         }
+        
 
         /// <summary>
         /// Records a new track play (automatically assigned to correct year)
