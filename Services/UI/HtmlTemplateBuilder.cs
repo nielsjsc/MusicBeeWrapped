@@ -483,5 +483,70 @@ namespace MusicBeeWrapped.Services.UI
 
             return script.ToString();
         }
+
+        /// <summary>
+        /// Generates the complete modular HTML for the wrapped interface using slide components
+        /// </summary>
+        public string GenerateModularWrappedHTML(WrappedStatistics stats, PlayHistory playHistory, int year, System.Collections.Generic.List<MusicBeeWrapped.Services.UI.Slides.SlideComponentBase> slides, CssStyleProvider cssProvider, JavaScriptProvider jsProvider, DataSerializer dataSerializer, MusicBeeWrapped.Services.UI.Slides.SlideManager slideManager)
+        {
+            var html = new System.Text.StringBuilder();
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html lang=\"en\">\n<head>");
+            html.AppendLine("    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <meta name=\"description\" content=\"MusicBee Wrapped - Your personal music listening statistics and insights\">\n    <title>Your " + year + " Music Wrapped - MusicBee Wrapped</title>");
+            html.AppendLine("    <style>");
+            html.AppendLine(cssProvider.GetMainInterfaceCSS());
+            html.AppendLine(slideManager.GenerateAllSlideCSS());
+            html.AppendLine("    </style>\n</head>");
+            html.AppendLine("<body>\n    <div id=\"app\">");
+            // Generate HTML for each active slide
+            foreach (var slide in slides)
+            {
+                try
+                {
+                    var slideHtml = slide.GenerateHTML(stats, playHistory, year);
+                    html.AppendLine(slideHtml);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error generating HTML for slide {slide.SlideId}: {ex.Message}");
+                }
+            }
+            html.AppendLine("    </div>");
+            html.AppendLine("    <div id=\"nav-controls\">\n        <button id=\"prev-btn\" class=\"nav-btn\" disabled aria-label=\"Previous slide\">←</button>\n        <div id=\"slide-indicator\" role=\"tablist\" aria-label=\"Slide navigation\"></div>\n        <button id=\"next-btn\" class=\"nav-btn\" aria-label=\"Next slide\">→</button>\n    </div>");
+            html.AppendLine("    <script>");
+            html.AppendLine(dataSerializer.CreateWrappedDataObject(stats, playHistory, year));
+            html.AppendLine(slideManager.GenerateSlideNavigationData());
+            html.AppendLine("    </script>");
+            html.AppendLine("    <script>");
+            html.AppendLine(GenerateModularJavaScript(stats, year, jsProvider, slideManager));
+            html.AppendLine("    </script>");
+            html.AppendLine("</body>\n</html>");
+            return html.ToString();
+        }
+
+        /// <summary>
+        /// Generates JavaScript that integrates with the slide system
+        /// </summary>
+        private string GenerateModularJavaScript(WrappedStatistics stats, int year, JavaScriptProvider jsProvider, MusicBeeWrapped.Services.UI.Slides.SlideManager slideManager)
+        {
+            var js = new System.Text.StringBuilder();
+            js.AppendLine(jsProvider.GetMainInterfaceJS());
+            js.AppendLine(slideManager.GenerateAllSlideJavaScript(stats, year));
+            js.AppendLine(@"
+        // Enhanced modular slide navigation
+        function initializeModularSlides() {
+            const slideElements = document.querySelectorAll('.slide[data-slide-id]');
+            const slideData = window.SLIDE_DATA || { slides: [], totalSlides: slideElements.length };
+            slides = Array.from(slideElements);
+            totalSlides = slides.length;
+            console.log(`Initialized ${totalSlides} modular slides`);
+            slides.forEach((slide, index) => {
+                slide.style.display = (index === 0) ? '' : 'none';
+            });
+        }
+        window.addEventListener('DOMContentLoaded', initializeModularSlides);
+        ");
+            return js.ToString();
+        }
     }
 }
