@@ -4,7 +4,7 @@ A MusicBee plugin that generates yearly music listening statistics and presents 
 
 ## Overview
 
-This plugin tracks your music listening habits in real-time and generates comprehensive yearly reports. The core differentiator is the behavioral analysis engine that detects listening patterns most streaming services miss: obsession periods where you're completely consumed by a particular artist or album, your album consumption patterns (do you listen to full albums or just skip around), and temporal listening behaviors.
+This plugin tracks your music listening habits in real-time, and stores them in an XML file. It then generates comprehensive yearly reports when you prompt.
 
 The data is presented through a slide-based web interface that opens in your browser, similar to Spotify Wrapped but with deeper insights into your actual listening behavior rather than just play counts.
 
