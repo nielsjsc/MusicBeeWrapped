@@ -15,7 +15,7 @@ Unlike external services, MusicBeeWrapped keeps all your listening data complete
 
 ## Installation
 
-1. Download the latest `mb_MusicBeeWrapped.dll` from the [releases page](https://github.com/yourusername/MusicBeeWrapped/releases)
+1. Download the latest `mb_MusicBeeWrapped.dll` from the [releases page](https://github.com/nielsjsc/MusicBeeWrapped/releases)
 2. Copy the file to your MusicBee `Plugins` folder:
    - **Windows**: Usually `C:\Program Files (x86)\MusicBee\Plugins\`
    - **Other platforms**: `[MusicBee installation]/Plugins/`
