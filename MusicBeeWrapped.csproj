@@ -59,7 +59,6 @@
     <Compile Include="Models\ObsessionPeriod.cs" />
     <!-- Service Layer -->
     <Compile Include="Services\DataPathService.cs" />
-    <Compile Include="Services\PlayHistoryService.cs" />
     <Compile Include="Services\TrackingService.cs" />
     <Compile Include="Services\YearBasedDataService.cs" />
     <Compile Include="Services\XmlDataService.cs" />
