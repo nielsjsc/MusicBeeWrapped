@@ -45,7 +45,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                                 <span class='title-line-2'>Played Song</span>
                                 <span class='title-line-3'>{year}</span>
                             </h2>
-                            <div class='mission-subtitle'>The track that defined your year</div>
+                            <div class='mission-subtitle'>The song that defined your year</div>
                         </div>
                         
                         <div class='supernova-system'>
@@ -277,6 +277,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
         }
 
         .mission-tag {
+            position: relative;
             display: inline-block;
             padding: clamp(0.4rem, 1vh, 0.7rem) clamp(1.5rem, 3vw, 2.5rem);
             background: rgba(0, 191, 255, 0.2);
@@ -286,10 +287,11 @@ namespace MusicBeeWrapped.Services.UI.Slides
             font-weight: 500;
             color: rgba(255, 255, 255, 0.9);
             letter-spacing: 0.2vw;
-            margin-bottom: clamp(1.5rem, 3vh, 2.5rem);
             backdrop-filter: blur(10px);
             animation: mission-pulse 4s ease-in-out infinite;
             text-transform: uppercase;
+            top: -2rem;
+            margin-bottom: 2.5rem; 
         }
 
         .cosmic-title {
