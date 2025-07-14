@@ -304,7 +304,7 @@ namespace MusicBeeWrapped.Services.UI
                 card.AppendLine($"                <div class=\"year-highlight\">Top Genre: <strong>{EscapeHtml(metadata.TopGenre)}</strong></div>");
             }
 
-            card.AppendLine($"                <div class=\"year-highlight\">Period: {metadata.FirstPlay:MMM} - {metadata.LastPlay:MMM}</div>");
+            card.AppendLine($"                <div class=\"year-highlight\">Period: {metadata.FirstPlay:MMM d} - {metadata.LastPlay:MMM d}</div>");
             card.AppendLine("            </div>");
             card.AppendLine("        </a>");
 
