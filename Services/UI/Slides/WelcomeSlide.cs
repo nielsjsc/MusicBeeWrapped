@@ -44,7 +44,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                             <div class='stats-preview'>
                                 <div class='stat-item stat-1'>
                                     <div class='stat-number'>{FormatNumber(stats.TotalTracks)}</div>
-                                    <div class='stat-label'>Tracks Discovered</div>
+                                    <div class='stat-label'>Tracks Played</div>
                                 </div>
                                 <div class='stat-item stat-2'>
                                     <div class='stat-number'>{stats.TotalHours:F0}h</div>
@@ -52,7 +52,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                                 </div>
                                 <div class='stat-item stat-3'>
                                     <div class='stat-number'>{stats.TotalUniqueArtists}</div>
-                                    <div class='stat-label'>Artists Explored</div>
+                                    <div class='stat-label'>Unique Artists</div>
                                 </div>
                             </div>
                         </div>
