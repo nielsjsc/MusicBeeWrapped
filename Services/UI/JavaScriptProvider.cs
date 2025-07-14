@@ -41,7 +41,31 @@ namespace MusicBeeWrapped.Services.UI
             showSlide(0);
         }
 
-
+        // Export Top 50 Playlist function
+        function exportTop50Playlist(year) {
+            let topTracks = window.top50Tracks || [];
+            if (!topTracks || topTracks.length === 0) {
+                alert('No top tracks found to export.');
+                return;
+            }
+            let playlistContent = '';
+            topTracks.forEach(track => {
+                playlistContent += `${track.filePath}\n`;
+            });
+            const blob = new Blob([playlistContent], { type: 'audio/x-mpegurl' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MusicBeeWrapped_Top50_${year}.m3u`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+        // Make export function globally accessible
+        window.exportTop50Playlist = exportTop50Playlist;
 
         function renderListeningChart(data) {
             const canvas = document.getElementById('listening-chart');
