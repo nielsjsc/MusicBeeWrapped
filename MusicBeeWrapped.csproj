@@ -82,7 +82,6 @@
     <Compile Include="Services\UI\Slides\TopTracksSlide.cs" />
     <Compile Include="Services\UI\Slides\TopArtistsSlide.cs" />
     <!-- Additional slides -->
-    <Compile Include="Services\UI\Slides\TopAlbumsSlide.cs" />
     <Compile Include="Services\UI\Slides\DailyChartSlide.cs" />
     <Compile Include="Services\UI\Slides\FinaleSlide.cs" />
     <Compile Include="Services\UI\Slides\ObsessionPeriodsSlide.cs" />

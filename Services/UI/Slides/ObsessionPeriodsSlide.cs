@@ -257,7 +257,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
             period.AverageDominance = period.Weeks.Average(w => w.DominancePercentage);
             period.PeakDominance = period.Weeks.Max(w => w.DominancePercentage);
             period.Duration = period.EndWeek - period.StartWeek + 1;
-            period.EndDate = period.StartDate.AddDays((period.Duration - 1) * 7);
+            period.EndDate = GetWeekStart(period.Year, period.EndWeek).AddDays(6);
             
             // Calculate intensity score (combination of hours, dominance, and duration)
             period.IntensityScore = period.TotalHours * period.AverageDominance * Math.Log(period.Duration + 1);
@@ -268,14 +268,15 @@ namespace MusicBeeWrapped.Services.UI.Slides
         /// </summary>
         private DateTime GetWeekStart(int year, int weekOfYear)
         {
-            var jan1 = new DateTime(year, 1, 1);
-            var daysOffset = DayOfWeek.Monday - jan1.DayOfWeek;
-            var firstMonday = jan1.AddDays(daysOffset);
+            // Create a date for January 4th of the year (always in week 1 of ISO week system)
+            var jan4 = new DateTime(year, 1, 4);
             
-            if (firstMonday.Year < year)
-                firstMonday = firstMonday.AddDays(7);
-                
-            return firstMonday.AddDays((weekOfYear - 1) * 7);
+            // Find the Monday of the week containing January 4th
+            var daysFromMonday = ((int)jan4.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+            var firstMondayOfYear = jan4.AddDays(-daysFromMonday);
+            
+            // Calculate the Monday of the requested week
+            return firstMondayOfYear.AddDays((weekOfYear - 1) * 7);
         }
 
         #endregion
@@ -754,7 +755,8 @@ namespace MusicBeeWrapped.Services.UI.Slides
         /* Insights Section */
         .obsession-insights {
             text-align: center;
-            margin-top: clamp(4rem, 8vh, 6rem);
+            margin-top: clamp(3rem, 5vh, 4rem);
+            margin-bottom: clamp(2rem, 4vh, 3rem);
             animation: insights-fade 1s ease-out 3.5s forwards;
             opacity: 0;
         }

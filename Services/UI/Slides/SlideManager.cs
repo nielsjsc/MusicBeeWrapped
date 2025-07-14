@@ -37,7 +37,6 @@ namespace MusicBeeWrapped.Services.UI.Slides
             RegisterSlide(new TopTracksSlide());                // 3. Top 5 songs
             RegisterSlide(new TopArtistsSlide());               // 4. Top 5 artists            
             // Additional slides
-            RegisterSlide(new TopAlbumsSlide());                // 5. Top Albums
             RegisterSlide(new ObsessionPeriodsSlide());         // 6. Musical obsessions
             RegisterSlide(new DailyChartSlide());               // 7. Daily Chart
             RegisterSlide(new FinaleSlide());                   // 8. Finale
