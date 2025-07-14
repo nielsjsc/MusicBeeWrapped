@@ -71,7 +71,6 @@ packages.lock.json
 
 # .NET
 *.exe
-*.dll
 *.pdb
 
 # Temporary files
