@@ -573,10 +573,15 @@ namespace MusicBeeWrapped.Services.UI.Slides
         #chart-nav-title {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #ffffff;
+            background: linear-gradient(135deg, #A855F7 0%, #EC4899 50%, #8B5CF6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+            text-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
             letter-spacing: -0.025em;
+            position: relative;
+            filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.4));
         }
 
         .chart-container {
