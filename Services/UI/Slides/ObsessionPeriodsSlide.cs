@@ -435,7 +435,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
             
             if (totalObsessions == 1)
             {
-                return $"You had one major musical obsession this year. When you find something you love, you really dive deep!";
+                return $"You had one major musical obsession this year!";
             }
             else
             {
@@ -529,7 +529,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
             z-index: 2;
             max-width: 90%;
             width: 1200px;
-            padding: clamp(2rem, 4vw, 3rem);
+            padding: clamp(3rem, 5vw, 4rem) clamp(2rem, 4vw, 3rem) clamp(2rem, 4vw, 3rem);  // Added top padding
         }
 
         /* Overview Section */
@@ -554,9 +554,9 @@ namespace MusicBeeWrapped.Services.UI.Slides
         }
 
         .obsession-title {
-            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-size: clamp(2rem, 4.5vw, 3rem);  // Changed from clamp(2.5rem, 6vw, 4rem)
             font-weight: 700;
-            line-height: 1.1;
+            line-height: 0.8;
             margin-bottom: 1.5rem;
             background: linear-gradient(135deg, #ffffff 0%, #e879f9 25%, #a855f7 50%, #3b82f6 75%, #ffffff 100%);
             background-clip: text;
