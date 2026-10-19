@@ -503,10 +503,9 @@ namespace MusicBeeWrapped
 
             foreach (var play in albumPlays)
             {
-                var albumKey = $"{play.Artist} - {play.Album}";
-                
                 // Check if this continues the current session
-                if (currentSession.Album == albumKey && 
+                if (string.Equals(currentSession.Album, play.Album, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(currentSession.Artist, play.Artist, StringComparison.OrdinalIgnoreCase) &&
                     (play.PlayedAt - currentSession.EndTime).TotalMinutes <= sessionThresholdMinutes)
                 {
                     // Continue current session

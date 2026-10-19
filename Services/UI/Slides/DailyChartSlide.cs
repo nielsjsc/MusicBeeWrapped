@@ -7,693 +7,499 @@ using MusicBeeWrapped;
 namespace MusicBeeWrapped.Services.UI.Slides
 {
     /// <summary>
-    /// Daily Chart slide component - Shows daily listening activity throughout the year
-    /// Displays a chart of daily play counts and listening statistics
+    /// Slide 7: Timeline & Monthly Breakdown (Warm Newsprint stock).
+    /// Uses 2 intra-slide steps on the Right Arrow key:
+    /// Step 1: Spacious 365-Day Timeline Chart.
+    /// Step 2: 12-Month Breakdown with each month's #1 artist and album cover.
     /// </summary>
     public class DailyChartSlide : SlideComponentBase
     {
         public override string SlideId => "daily-chart";
-        public override string SlideTitle => "Your Daily Listening Journey";
+        public override string SlideTitle => "Timeline";
         public override int SlideOrder => 7;
         public override bool RequiresChartRendering => true;
+        public override string AccentTheme => "newsprint";
+
+        public override bool CanRender(WrappedStatistics stats, PlayHistory playHistory)
+        {
+            return base.CanRender(stats, playHistory) &&
+                   stats.DailyListeningMinutes != null &&
+                   stats.DailyListeningMinutes.Any();
+        }
 
         public override string GenerateHTML(WrappedStatistics stats, PlayHistory playHistory, int year)
         {
+            var yearPlays = GetYearPlays(playHistory, year);
+            var activeDays = stats.DailyListeningMinutes.Count(kv => kv.Value > 0);
+
+            var monthCards = new List<string>();
+            double maxMonthHours = 1.0;
+            var monthlyData = new List<(int Month, string Name, int Plays, double Hours, string TopArtist, string CoverUri)>();
+
+            for (int m = 1; m <= 12; m++)
+            {
+                var mPlays = yearPlays.Where(p => p.PlayedAt.Month == m).ToList();
+                int count = mPlays.Count;
+                double hours = Math.Round(mPlays.Sum(p => GetActualSeconds(p)) / 3600.0, 1);
+                if (hours > maxMonthHours) maxMonthHours = hours;
+
+                var topArtistGroup = mPlays
+                    .Where(p => !string.IsNullOrEmpty(p.Artist))
+                    .GroupBy(p => p.Artist)
+                    .OrderByDescending(g => g.Count())
+                    .FirstOrDefault();
+
+                string topArtist = topArtistGroup != null ? topArtistGroup.Key : "—";
+                var samplePlay = topArtistGroup?.FirstOrDefault();
+                string coverUri = samplePlay != null ? Artwork.GetTrackArtworkDataUri(samplePlay, 140) : null;
+
+                string mName = new DateTime(year, m, 1).ToString("MMM", CultureInfo.InvariantCulture).ToUpperInvariant();
+                monthlyData.Add((m, mName, count, hours, topArtist, coverUri));
+            }
+
+            var peakMonth = monthlyData.OrderByDescending(x => x.Hours).First();
+
+            foreach (var m in monthlyData)
+            {
+                bool isPeak = m.Month == peakMonth.Month && m.Hours > 0;
+                bool isEmpty = m.Plays == 0;
+                int barPct = m.Hours > 0 ? Math.Max(6, (int)Math.Round(m.Hours * 100.0 / maxMonthHours)) : 0;
+
+                string artHtml = !isEmpty
+                    ? RenderCoverArt(m.CoverUri, m.TopArtist, m.Name, "sleeve-frame almanac-mini-sleeve")
+                    : "<div class='almanac-empty-box'>—</div>";
+
+                monthCards.Add($@"
+                    <div class='almanac-cell {(isPeak ? "is-peak" : "")} {(isEmpty ? "is-empty" : "")}'>
+                        <div class='almanac-cell-top'>
+                            <span class='almanac-mname'>{m.Name}</span>
+                            <span class='almanac-hrs'>{m.Hours:F1} hrs</span>
+                        </div>
+                        <div class='almanac-cell-body'>
+                            {artHtml}
+                            <div class='almanac-meta'>
+                                <div class='almanac-artist' title='{EscapeHtml(m.TopArtist)}'>{EscapeHtml(m.TopArtist)}</div>
+                                <div class='almanac-plays'>{m.Plays:N0} plays</div>
+                            </div>
+                        </div>
+                        <div class='almanac-rail'><div class='almanac-ink' style='width:{barPct}%'></div></div>
+                    </div>");
+            }
+
             var content = $@"
-                <div class='cosmic-chart-bg'>
-                    <div class='starfield'></div>
-                    <div class='nebula-purple'></div>
-                    <div class='nebula-blue'></div>
-                    <div class='orbit-rings'></div>
-                    <div class='cosmic-planet primary'></div>
-                    <div class='cosmic-planet secondary'></div>
-                    <div class='cosmic-comet'></div>
-                    <div class='cosmic-asteroids'></div>
-                    <div class='shooting-stars'></div>
+                <header class='liner-header'>
+                    <div>
+                        <div class='liner-kicker'>ACROSS THE YEAR</div>
+                        <h1 class='liner-title'>{year} Timeline</h1>
+                    </div>
+                    <div class='step-tabs'>
+                        <button type='button' class='step-tab-btn active' data-goto-step='0'>01 · Daily Chart</button>
+                        <button type='button' class='step-tab-btn' data-goto-step='1'>02 · By Month</button>
+                    </div>
+                </header>
+
+                <!-- Step 1: Spacious Daily Ink Canvas -->
+                <div class='slide-step active' data-step-title='Timeline'>
+                    <div class='chronicle-sheet'>
+                        <div class='chronicle-toolbar'>
+                            <div class='chronicle-readout' id='daily-hover-readout'>
+                                <strong>{stats.TotalHours:N1} hours</strong> across <strong>{activeDays} active days</strong> · Longest streak: <strong>{stats.LongestListeningStreak} days</strong>
+                            </div>
+                            <div class='chronicle-controls'>
+                                <button type='button' class='ink-mode-btn active' data-chart-mode='minutes'>MINUTES</button>
+                                <button type='button' class='ink-mode-btn' data-chart-mode='plays'>PLAYS</button>
+                                <button type='button' class='ink-mode-btn' data-chart-mode='rolling'>7-DAY AVG</button>
+                            </div>
+                        </div>
+                        <div class='chronicle-canvas-wrap'>
+                            <canvas id='daily-chart-canvas'></canvas>
+                        </div>
+                    </div>
                 </div>
-                <div class='cosmic-chart-nav'>
-                    <button id='chart-back-btn' class='zoom-out-btn'>
-                        <span class='zoom-icon'>⟨</span>
-                        <span class='zoom-label'>Back</span>
-                    </button>
-                    <h2 id='chart-nav-title'>Monthly Listening Journey</h2>
-                </div>
-                <div class='chart-container'>
-                    <div class='chart-units' id='chart-units'>Plays</div>
-                    <canvas id='dailyChart' width='1200' height='500'></canvas>
-                    <div class='chart-interaction-hint' id='chart-hint'>
-                        <div class='hint-glow'></div>
-                        <span class='hint-text'>Click to explore deeper</span>
+
+                <!-- Step 2: 12-Month Grid -->
+                <div class='slide-step' data-step-title='By Month'>
+                    <div class='almanac-grid'>
+                        {string.Join("\n", monthCards)}
                     </div>
                 </div>";
+
             return WrapInSlideContainer(content);
         }
 
         public override string GenerateJavaScript(WrappedStatistics stats, int year)
         {
             return @"
-        let chartView = 'month';
-        let chartState = { selectedMonth: null, selectedDay: null };
-        let animationFrame = null;
-        let chartTransition = { progress: 0, animating: false };
-        
-        const canvas = document.getElementById('dailyChart');
-        const ctx = canvas.getContext('2d');
-        const navTitle = document.getElementById('chart-nav-title');
-        const backBtn = document.getElementById('chart-back-btn');
-        const chartUnits = document.getElementById('chart-units');
-        const chartHint = document.getElementById('chart-hint');
-        const data = window.WRAPPED_DATA;
-        const dailyPlays = data.dailyPlays || {};
-        const playHistory = data.playHistory || [];
-        
+        (function() {
+            let chartMode = 'minutes';
+            let pointsCache = [];
 
-        // High DPI canvas setup
-        function setupHighDPICanvas() {
-        const container = canvas.parentElement;
-        const containerRect = container.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        
-        // Set actual canvas size
-        canvas.width = containerRect.width * dpr;
-        canvas.height = containerRect.height * dpr;
-        
-        // Set display size
-        canvas.style.width = containerRect.width + 'px';
-        canvas.style.height = containerRect.height + 'px';
-        
-        // Scale the context for high DPI
-        ctx.scale(dpr, dpr);
-        
-        // Store logical dimensions for drawing calculations
-        canvas.logicalWidth = containerRect.width;
-        canvas.logicalHeight = containerRect.height;
-    }
+            function buildSeries(year, mode) {
+                const data = window.WRAPPED_DATA || {};
+                const dailyMins = data.dailyMinutes || {};
+                const dailyPlays = data.dailyPlays || {};
+                const dailyDetails = data.dailyDetails || {};
 
-        function getMonthlyTotals() {
-            const months = Array(12).fill(0);
-            Object.keys(dailyPlays).forEach(dateStr => {
-                const d = new Date(dateStr);
-                months[d.getMonth()] += dailyPlays[dateStr];
-            });
-            return months;
-        }
+                const start = new Date(year, 0, 1);
+                const end = new Date(year, 11, 31);
+                const raw = [];
 
-        function getDailyTotals(monthIdx) {
-            const year = data.year;
-            const days = [];
-            const start = new Date(year, monthIdx, 1);
-            const end = new Date(year, monthIdx + 1, 0);
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                const dateStr = d.toISOString().split('T')[0];
-                days.push({ date: new Date(d), plays: dailyPlays[dateStr] || 0 });
-            }
-            return days;
-        }
-
-        function getHourlyTotals(dateObj) {
-            // Remove hourly zoom functionality: always return null or empty
-            return null;
-        }
-
-        function easeInOutCubic(t) {
-            return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
-        }
-
-        function animateTransition(callback) {
-            if (chartTransition.animating) return;
-            
-            chartTransition.animating = true;
-            chartTransition.progress = 0;
-            
-            function animate() {
-                chartTransition.progress += 0.08;
-                if (chartTransition.progress >= 1) {
-                    chartTransition.progress = 1;
-                    chartTransition.animating = false;
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const key = `${yyyy}-${mm}-${dd}`;
+                    const mins = Number(dailyMins[key] || 0);
+                    const plays = Number(dailyPlays[key] || 0);
+                    const detail = dailyDetails[key] || {};
+                    raw.push({
+                        key,
+                        dateObj: new Date(d),
+                        mins,
+                        plays,
+                        topArtist: detail.topArtist || '',
+                        topTrack: detail.topTrack || ''
+                    });
                 }
-                
-                callback();
-                
-                if (chartTransition.animating) {
-                    requestAnimationFrame(animate);
-                }
-            }
-            
-            requestAnimationFrame(animate);
-        }
 
-        function updateUI() {
-            if (chartView === 'month') {
-                navTitle.textContent = 'Monthly Listening Journey';
-                backBtn.style.display = 'none';
-                chartHint.style.display = 'flex';
-                chartUnits.textContent = 'Total Plays';
-            } else if (chartView === 'day') {
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                                 'July', 'August', 'September', 'October', 'November', 'December'];
-                navTitle.textContent = monthNames[chartState.selectedMonth] + ' Daily Activity';
-                backBtn.style.display = 'flex';
-                chartHint.style.display = 'none'; // Remove hint for further zoom
-                chartUnits.textContent = 'Plays per Day';
-            }
-        }
+                raw.forEach((pt, idx) => {
+                    if (mode === 'plays') {
+                        pt.value = pt.plays;
+                    } else if (mode === 'rolling') {
+                        let sum = 0, cnt = 0;
+                        for (let k = Math.max(0, idx - 6); k <= idx; k++) {
+                            sum += raw[k].mins;
+                            cnt++;
+                        }
+                        pt.value = Math.round((sum / Math.max(1, cnt)) * 10) / 10;
+                    } else {
+                        pt.value = pt.mins;
+                    }
+                });
 
-        function drawChart() {
-            if (!canvas) return;
-            const width = canvas.logicalWidth || canvas.offsetWidth;
-            const height = canvas.logicalHeight || canvas.offsetHeight;
-            ctx.clearRect(0, 0, width, height);
-            ctx.save();
-            
-            // Subtle cosmic background on canvas
-            const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
-            gradient.addColorStop(0, 'rgba(79, 70, 229, 0.05)');
-            gradient.addColorStop(1, 'rgba(15, 16, 33, 0.1)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, width, height);
-            
-            // Chart logic with smooth transitions
-            const easedProgress = easeInOutCubic(chartTransition.progress);
-            
-            if (chartView === 'month') {
-                const months = getMonthlyTotals();
-                drawSmoothCurve(ctx, months, width, height, 'month', easedProgress);
-                drawMonthLabels(ctx, width, height, easedProgress);
-            } else if (chartView === 'day') {
-                const days = getDailyTotals(chartState.selectedMonth);
-                drawSmoothCurve(ctx, days.map(d => d.plays), width, height, 'day', easedProgress);
-                drawDayLabels(ctx, days, width, height, easedProgress);
+                return raw;
             }
-            
-            ctx.restore();
-        }
 
-        function drawSmoothCurve(ctx, dataArr, width, height, mode, progress = 1) {
-            const padding = 80;
-            const chartW = width - 2 * padding;
-            const chartH = height - 2 * padding;
-            const maxVal = Math.max(...dataArr, 1);
-            
-            // Y-axis scale labels
-            ctx.save();
-            ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            
-            for (let i = 0; i <= 5; i++) {
-                const value = Math.round((maxVal * i) / 5);
-                const y = padding + chartH - (chartH * i / 5);
-                ctx.fillText(value.toString(), padding - 15, y);
-                
-                // Grid lines
-                ctx.save();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            function renderDailyChronicle() {
+                const canvas = document.getElementById('daily-chart-canvas');
+                if (!canvas) return;
+                const parent = canvas.parentElement;
+                const rect = parent.getBoundingClientRect();
+                if (rect.width <= 10) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                const width = rect.width;
+                const height = rect.height || 270;
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+
+                const ctx = canvas.getContext('2d');
+                ctx.scale(dpr, dpr);
+                ctx.clearRect(0, 0, width, height);
+
+                const year = (window.WRAPPED_DATA && window.WRAPPED_DATA.year) || new Date().getFullYear();
+                const series = buildSeries(year, chartMode);
+                const maxVal = Math.max(10, ...series.map(s => s.value));
+
+                const padL = 42, padR = 16, padT = 18, padB = 26;
+                const plotW = width - padL - padR;
+                const plotH = height - padT - padB;
+
+                ctx.strokeStyle = 'rgba(24, 22, 20, 0.12)';
                 ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(padding, y);
-                ctx.lineTo(padding + chartW, y);
-                ctx.stroke();
-                ctx.restore();
-            }
-            ctx.restore();
-            
-            // Main curve
-            ctx.save();
-            
-            // Gradient stroke
-            const gradient = ctx.createLinearGradient(0, padding, 0, padding + chartH);
-            gradient.addColorStop(0, '#8B5CF6');
-            gradient.addColorStop(0.5, '#A855F7');
-            gradient.addColorStop(1, '#EC4899');
-            
-            ctx.strokeStyle = gradient;
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.shadowColor = '#A855F7';
-            ctx.shadowBlur = 15;
-            
-            ctx.beginPath();
-            
-            let points = [];
-            for (let i = 0; i < dataArr.length; i++) {
-                const x = padding + (chartW * i / Math.max(dataArr.length - 1, 1));
-                const y = padding + chartH - (chartH * dataArr[i] / maxVal);
-                points.push({x, y, value: dataArr[i]});
-            }
-            
-            if (points.length > 1) {
-                ctx.moveTo(points[0].x, points[0].y);
-                
-                for (let i = 1; i < points.length; i++) {
-                    const prevPoint = points[i - 1];
-                    const currentPoint = points[i];
-                    
-                    const cpx1 = prevPoint.x + (currentPoint.x - prevPoint.x) * 0.3;
-                    const cpy1 = prevPoint.y;
-                    const cpx2 = currentPoint.x - (currentPoint.x - prevPoint.x) * 0.3;
-                    const cpy2 = currentPoint.y;
-                    
-                    ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, currentPoint.x, currentPoint.y);
-                }
-            }
-            
-            ctx.stroke();
-            
-            // Glow points
-            ctx.shadowBlur = 8;
-            points.forEach(point => {
-                if (point.value > 0) {
+                ctx.fillStyle = '#726B61';
+                ctx.font = '500 10px ""JetBrains Mono"", monospace';
+                ctx.textAlign = 'right';
+
+                for (let i = 0; i <= 3; i++) {
+                    const y = padT + (plotH * i / 3);
+                    const val = Math.round(maxVal * (1 - i / 3));
                     ctx.beginPath();
-                    ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
-                    ctx.fillStyle = '#FFFFFF';
+                    ctx.moveTo(padL, y);
+                    ctx.lineTo(width - padR, y);
+                    ctx.stroke();
+                    ctx.fillText(String(val), padL - 8, y + 3);
+                }
+
+                const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+                ctx.textAlign = 'left';
+                months.forEach((mLbl, mIdx) => {
+                    const dayOfYear = Math.floor((new Date(year, mIdx, 1) - new Date(year, 0, 1)) / 86400000);
+                    const x = padL + (dayOfYear / Math.max(1, series.length - 1)) * plotW;
+                    ctx.fillStyle = '#726B61';
+                    ctx.fillText(mLbl, x + 2, height - 6);
+                });
+
+                pointsCache = series.map((pt, idx) => {
+                    const x = padL + (idx / Math.max(1, series.length - 1)) * plotW;
+                    const y = padT + plotH - (pt.value / maxVal) * plotH;
+                    return { ...pt, x, y, plotBottom: padT + plotH };
+                });
+
+                ctx.beginPath();
+                ctx.moveTo(pointsCache[0].x, padT + plotH);
+                pointsCache.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.lineTo(pointsCache[pointsCache.length - 1].x, padT + plotH);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(179, 57, 30, 0.14)';
+                ctx.fill();
+
+                ctx.beginPath();
+                pointsCache.forEach((p, i) => {
+                    if (i === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.strokeStyle = '#181614';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                const peakPt = pointsCache.reduce((best, cur) => cur.value > best.value ? cur : best, pointsCache[0]);
+                if (peakPt && peakPt.value > 0) {
+                    ctx.fillStyle = '#B3391E';
+                    ctx.beginPath();
+                    ctx.arc(peakPt.x, peakPt.y, 4.5, 0, Math.PI * 2);
                     ctx.fill();
                 }
-            });
-            
-            ctx.restore();
-        }
+            }
 
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
-        function drawMonthLabels(ctx, width, height, progress = 1) {
-            const padding = 80;
-            const chartW = width - 2 * padding;
-            ctx.save();
-            ctx.font = '600 14px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * progress})`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            
-            for (let i = 0; i < 12; i++) {
-                const x = padding + (chartW * i / 11);
-                ctx.fillText(monthNames[i], x, height - 30);
-            }
-            ctx.restore();
-        }
-        
-        function drawDayLabels(ctx, days, width, height, progress = 1) {
-            const padding = 80;
-            const chartW = width - 2 * padding;
-            ctx.save();
-            ctx.font = '600 12px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * progress})`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            
-            const step = Math.max(1, Math.ceil(days.length / 8));
-            for (let i = 0; i < days.length; i += step) {
-                const x = padding + (chartW * i / Math.max(days.length - 1, 1));
-                ctx.fillText(days[i].date.getDate().toString(), x, height - 30);
-            }
-            ctx.restore();
-        }
-        
-        function drawHourLabels(ctx, width, height, progress = 1) {
-            const padding = 80;
-            const chartW = width - 2 * padding;
-            ctx.save();
-            ctx.font = '600 12px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * progress})`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            
-            for (let i = 0; i < 24; i += 3) {
-                const x = padding + (chartW * i / 23);
-                const label = i === 0 ? '12 AM' : i === 12 ? '12 PM' : i < 12 ? i + ' AM' : (i - 12) + ' PM';
-                ctx.fillText(label, x, height - 30);
-            }
-            ctx.restore();
-        }
+            document.addEventListener('DOMContentLoaded', function() {
+                const btns = document.querySelectorAll('.ink-mode-btn[data-chart-mode]');
+                btns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        chartMode = btn.getAttribute('data-chart-mode') || 'minutes';
+                        btns.forEach(b => b.classList.toggle('active', b === btn));
+                        renderDailyChronicle();
+                    });
+                });
 
-        canvas.addEventListener('click', function(e) {
-            if (chartTransition.animating) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const padding = 80;
-            const chartW = rect.width - 2 * padding;
-            if (chartView === 'month') {
-                const monthIdx = Math.round((x - padding) / (chartW / 11));
-                if (monthIdx >= 0 && monthIdx < 12) {
-                    chartView = 'day';
-                    chartState.selectedMonth = monthIdx;
-                    updateUI();
-                    animateTransition(drawChart);
+                const canvas = document.getElementById('daily-chart-canvas');
+                const readout = document.getElementById('daily-hover-readout');
+                if (canvas && readout) {
+                    canvas.addEventListener('mousemove', (e) => {
+                        if (!pointsCache.length) return;
+                        const r = canvas.getBoundingClientRect();
+                        const mx = e.clientX - r.left;
+                        let nearest = pointsCache[0];
+                        let bestDist = Math.abs(mx - nearest.x);
+                        for (let i = 1; i < pointsCache.length; i++) {
+                            const d = Math.abs(mx - pointsCache[i].x);
+                            if (d < bestDist) {
+                                bestDist = d;
+                                nearest = pointsCache[i];
+                            }
+                        }
+                        const dateStr = nearest.dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const artistInfo = nearest.topArtist && nearest.topArtist !== 'Unknown'
+                            ? ` · <strong>${nearest.topArtist}</strong>`
+                            : '';
+                        readout.innerHTML = `<span class='mono-label'>${dateStr.toUpperCase()}</span> — <strong>${nearest.mins} mins</strong> (${nearest.plays} plays)${artistInfo}`;
+                    });
                 }
-            }
-            // Remove day-to-hour zoom
-        });
 
-        backBtn.addEventListener('click', function() {
-            if (chartTransition.animating) return;
-            
-            if (chartView === 'hour') {
-                chartView = 'day';
-            } else if (chartView === 'day') {
-                chartView = 'month';
-            }
-            updateUI();
-            animateTransition(drawChart);
-        });
+                document.addEventListener('slideChanged', (e) => {
+                    if (e.detail && e.detail.slideElement && e.detail.slideElement.getAttribute('data-slide-id') === 'daily-chart') {
+                        setTimeout(renderDailyChronicle, 40);
+                    }
+                });
 
-        window.addEventListener('resize', function() {
-            setupHighDPICanvas();
-            // Small delay to ensure container has resized
-            setTimeout(() => {
-                drawChart();
-            }, 100);
-        });
-
-        // Initialize
-        setupHighDPICanvas();
-        updateUI();
-        animateTransition(drawChart);
-        ";
+                window.addEventListener('resize', () => {
+                    const active = document.querySelector('.slide.active');
+                    if (active && active.getAttribute('data-slide-id') === 'daily-chart') {
+                        renderDailyChronicle();
+                    }
+                });
+            });
+        })();";
         }
 
         public override string GenerateCSS()
         {
             return @"
-        .cosmic-chart-bg {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none;
-            overflow: hidden;
-        }
-
-        .starfield {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(2px 2px at 20% 30%, #ffffff, transparent),
-                radial-gradient(2px 2px at 40% 70%, rgba(255,255,255,0.8), transparent),
-                radial-gradient(1px 1px at 90% 40%, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,0.4), transparent),
-                radial-gradient(2px 2px at 10% 80%, rgba(255,255,255,0.7), transparent),
-                radial-gradient(ellipse at center, #0f0f23 0%, #000000 100%);
-            background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px, 400px 400px, 100% 100%;
-            animation: starfield 120s linear infinite;
-        }
-
-        @keyframes starfield {
-            0% { transform: translateY(0) rotate(0deg); }
-            100% { transform: translateY(-100px) rotate(360deg); }
-        }
-
-        .nebula-purple {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(ellipse at 30% 20%, rgba(139, 92, 246, 0.4) 0%, transparent 60%);
-            animation: nebulaDrift 60s ease-in-out infinite;
-        }
-
-        .nebula-blue {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(ellipse at 70% 80%, rgba(79, 70, 229, 0.3) 0%, transparent 70%);
-            animation: nebulaDrift 80s ease-in-out infinite reverse;
-        }
-
-        @keyframes nebulaDrift {
-            0%, 100% { transform: translateX(0) scale(1); }
-            50% { transform: translateX(20px) scale(1.1); }
-        }
-
-        .orbit-rings {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: 
-                repeating-radial-gradient(circle at 80% 30%, rgba(168, 85, 247, 0.1) 0px, transparent 60px),
-                repeating-radial-gradient(circle at 20% 70%, rgba(79, 70, 229, 0.08) 0px, transparent 80px);
-            animation: orbitRotation 100s linear infinite;
-        }
-
-        @keyframes orbitRotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .cosmic-planet {
-            position: absolute;
-            border-radius: 50%;
-            box-shadow: 0 0 40px rgba(168, 85, 247, 0.6);
-        }
-
-        .cosmic-planet.primary {
-            left: 8%;
-            top: 15%;
-            width: 100px;
-            height: 100px;
-            background: radial-gradient(circle at 30% 30%, #A855F7 0%, #4C1D95 80%);
-            animation: planetFloat 20s ease-in-out infinite;
-        }
-
-        .cosmic-planet.secondary {
-            right: 12%;
-            bottom: 20%;
-            width: 60px;
-            height: 60px;
-            background: radial-gradient(circle at 40% 40%, #EC4899 0%, #7C2D92 80%);
-            animation: planetFloat 15s ease-in-out infinite reverse;
-        }
-
-        @keyframes planetFloat {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            50% { transform: translateY(-10px) rotate(180deg); }
-        }
-
-        .cosmic-comet {
-            position: absolute;
-            right: 20%;
-            top: 10%;
-            width: 3px;
-            height: 3px;
-            background: #ffffff;
-            border-radius: 50%;
-            box-shadow: 
-                0 0 10px #ffffff,
-                -20px 0 8px rgba(255, 255, 255, 0.6),
-                -40px 0 6px rgba(255, 255, 255, 0.4),
-                -60px 0 4px rgba(255, 255, 255, 0.2);
-            animation: cometTrail 8s ease-in-out infinite;
-        }
-
-        @keyframes cometTrail {
-            0% { transform: translateX(100px) translateY(-20px) rotate(45deg); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateX(-100px) translateY(20px) rotate(45deg); opacity: 0; }
-        }
-
-        .cosmic-asteroids {
-            position: absolute;
-            left: 60%;
-            top: 60%;
-            width: 2px;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 50%;
-            box-shadow: 
-                10px 15px 0 1px rgba(255, 255, 255, 0.6),
-                -15px 10px 0 0px rgba(255, 255, 255, 0.4),
-                25px -10px 0 1px rgba(255, 255, 255, 0.7),
-                -10px -15px 0 0px rgba(255, 255, 255, 0.5);
-            animation: asteroidDrift 25s linear infinite;
-        }
-
-        @keyframes asteroidDrift {
-            0% { transform: translateX(-20px) rotate(0deg); }
-            100% { transform: translateX(20px) rotate(360deg); }
-        }
-
-        .shooting-stars {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.8), transparent),
-                radial-gradient(1px 1px at 80% 50%, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1px 1px at 50% 90%, rgba(255,255,255,0.4), transparent);
-            background-size: 100% 100%;
-            animation: shootingStars 3s ease-in-out infinite;
-        }
-
-        @keyframes shootingStars {
-            0%, 90% { opacity: 0; transform: translateX(-100px); }
-            10%, 80% { opacity: 1; transform: translateX(0); }
-            100% { opacity: 0; transform: translateX(100px); }
-        }
-
-        .cosmic-chart-nav {
-            position: relative;
-            z-index: 2;
+        .chronicle-sheet {
+            background: var(--bg-card);
+            border: 1px solid var(--rule-strong);
+            padding: 22px 26px;
             display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 8px;
         }
 
-        .zoom-out-btn {
-            display: none;
+        .chronicle-toolbar {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.5rem;
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(79, 70, 229, 0.2) 100%);
-            border: 1px solid rgba(168, 85, 247, 0.3);
-            border-radius: 12px;
-            padding: 0.75rem 1.5rem;
-            color: #ffffff;
-            font-size: 0.95rem;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .chronicle-readout {
+            font-size: 0.92rem;
+            color: var(--ink-secondary);
+        }
+
+        .chronicle-readout strong {
+            color: var(--ink);
             font-weight: 600;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .chronicle-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .ink-mode-btn {
+            background: transparent;
+            border: 1px solid var(--rule-strong);
+            color: var(--ink-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            backdrop-filter: blur(8px);
         }
 
-        .zoom-out-btn:hover {
-            background: linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(79, 70, 229, 0.3) 100%);
-            border-color: rgba(168, 85, 247, 0.5);
-            transform: translateY(-1px);
-            box-shadow: 0 8px 25px rgba(168, 85, 247, 0.2);
+        .ink-mode-btn.active {
+            background: var(--ink);
+            color: var(--bg-card);
         }
 
-        .zoom-icon {
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-
-        #chart-nav-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #A855F7 0%, #EC4899 50%, #8B5CF6 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            text-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
-            letter-spacing: -0.025em;
-            position: relative;
-            filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.4));
-        }
-
-        .chart-container {
-            position: relative;
+        .chronicle-canvas-wrap {
             width: 100%;
-            max-width: 1200px;
-            height: 500px;
-            margin: 0 auto;
-            background: linear-gradient(135deg, rgba(15, 16, 33, 0.4) 0%, rgba(30, 27, 75, 0.2) 100%);
-            border-radius: 20px;
-            padding: 2rem;
-            box-shadow: 
-                0 20px 40px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            z-index: 1;
+            height: 270px;
+            position: relative;
         }
 
-        .chart-units {
-            position: absolute;
-            top: 1rem;
-            left: 1rem;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.9rem;
+        /* Step 2: 12-Month Grid */
+        .almanac-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-top: 1px solid var(--rule-strong);
+            border-left: 1px solid var(--rule-strong);
+            background: var(--bg-card);
+            margin-top: 8px;
+        }
+
+        .almanac-cell {
+            padding: 16px 18px;
+            border-right: 1px solid var(--rule-strong);
+            border-bottom: 1px solid var(--rule-strong);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .almanac-cell.is-peak {
+            background: rgba(179, 57, 30, 0.08);
+        }
+
+        .almanac-cell.is-empty {
+            opacity: 0.45;
+        }
+
+        .almanac-cell-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+        }
+
+        .almanac-mname {
+            font-weight: 600;
+            color: var(--ink);
+            letter-spacing: 0.1em;
+        }
+
+        .almanac-cell.is-peak .almanac-mname {
+            color: var(--accent);
+        }
+
+        .almanac-hrs {
+            color: var(--ink-secondary);
             font-weight: 500;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            z-index: 2;
         }
 
-        .chart-container canvas {
-            width: 100%;
-            height: 100%;
-            border-radius: 15px;
-            cursor: pointer;
-            transition: transform 0.2s ease;
+        .almanac-cell-body {
+            display: grid;
+            grid-template-columns: 44px 1fr;
+            gap: 12px;
+            align-items: center;
         }
 
-        .chart-container canvas:hover {
-            transform: scale(1.005);
+        .almanac-mini-sleeve {
+            width: 44px;
+            height: 44px;
+            box-shadow: none;
         }
 
-        .chart-interaction-hint {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
+        .almanac-mini-sleeve .sleeve-fallback {
+            font-size: 0.75rem;
+        }
+
+        .almanac-mini-sleeve .sleeve-fallback span {
+            padding: 1px 4px;
+        }
+
+        .almanac-empty-box {
+            width: 44px;
+            height: 44px;
+            border: 1px dashed var(--rule);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            z-index: 10;
-            pointer-events: none;
-            animation: hintPulse 2s ease-in-out infinite;
+            justify-content: center;
+            color: var(--ink-muted);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
         }
 
-        .hint-glow {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: radial-gradient(circle, #A855F7 0%, transparent 70%);
-            box-shadow: 
-                0 0 10px #A855F7,
-                0 0 20px #A855F7,
-                0 0 30px #A855F7;
+        .almanac-meta {
+            min-width: 0;
         }
 
-        .hint-text {
-            color: rgba(255, 255, 255, 0.8);
+        .almanac-artist {
             font-size: 0.9rem;
-            font-weight: 500;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        @keyframes hintPulse {
-            0%, 100% { opacity: 0.6; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.05); }
+        .almanac-plays {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            color: var(--ink-muted);
+            margin-top: 2px;
         }
 
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .chart-container {
-                height: 400px;
-                padding: 1rem;
+        .almanac-rail {
+            height: 3px;
+            background: var(--bg-subtle);
+            width: 100%;
+        }
+
+        .almanac-ink {
+            height: 100%;
+            background: var(--ink-secondary);
+        }
+
+        .almanac-cell.is-peak .almanac-ink {
+            background: var(--accent);
+        }
+
+        @media (max-width: 1024px) {
+            .almanac-grid {
+                grid-template-columns: repeat(3, 1fr);
             }
-            
-            #chart-nav-title {
-                font-size: 1.2rem;
-            }
-            
-            .zoom-out-btn {
-                padding: 0.5rem 1rem;
-                font-size: 0.85rem;
-            }
         }
-        ";
-        }
-
-        public override string GetInsightText(WrappedStatistics stats, PlayHistory playHistory, int year)
-        {
-            var dailyPlays = stats.DailyPlayCounts ?? new Dictionary<string, int>();
-            if (!dailyPlays.Any())
-                return "Start listening daily to see your listening patterns!";
-
-            var activeDays = dailyPlays.Count;
-            var averagePlaysPerDay = dailyPlays.Values.Average();
-            
-            return $"You were active on {activeDays} days in {year}, averaging {averagePlaysPerDay:F1} plays per active day.";
-        }
-
-        public override bool CanRender(WrappedStatistics stats, PlayHistory playHistory)
-        {
-            var dailyPlays = stats.DailyPlayCounts ?? new Dictionary<string, int>();
-            return dailyPlays.Any() && stats.TotalTracks > 0;
+";
         }
     }
 }

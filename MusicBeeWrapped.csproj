@@ -63,6 +63,7 @@
     <Compile Include="Services\YearBasedDataService.cs" />
     <Compile Include="Services\XmlDataService.cs" />
     <!-- UI Layer -->
+    <Compile Include="Services\UI\ArtworkService.cs" />
     <Compile Include="Services\UI\DataSerializer.cs" />
     <Compile Include="Services\UI\CssStyleProvider.cs" />
     <Compile Include="Services\UI\JavaScriptProvider.cs" />

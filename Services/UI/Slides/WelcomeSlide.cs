@@ -1,66 +1,88 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using MusicBeeWrapped;
 
 namespace MusicBeeWrapped.Services.UI.Slides
 {
     /// <summary>
-    /// Welcome slide component - The opening slide of the wrapped experience
-    /// Sets the tone and provides an overview of what's to come
+    /// Slide 1: Overview (Warm Parchment stock).
+    /// Clean asymmetric layout with the year's 4 core figures on the left and a 2x2 album cover mosaic on the right.
     /// </summary>
     public class WelcomeSlide : SlideComponentBase
     {
         public override string SlideId => "welcome";
-        public override string SlideTitle => "Welcome";
-        public override int SlideOrder => 0;
+        public override string SlideTitle => "Overview";
+        public override int SlideOrder => 1;
+        public override string AccentTheme => "parchment";
 
         public override string GenerateHTML(WrappedStatistics stats, PlayHistory playHistory, int year)
         {
+            var yearPlays = GetYearPlays(playHistory, year).OrderBy(p => p.PlayedAt).ToList();
+            var firstPlay = yearPlays.FirstOrDefault();
+            var lastPlay = yearPlays.LastOrDefault();
+
+            var firstTrackText = firstPlay != null
+                ? $"{EscapeHtml(firstPlay.Title)} — {EscapeHtml(firstPlay.Artist)}"
+                : "—";
+            var firstDateText = firstPlay != null ? firstPlay.PlayedAt.ToString("MMM d") : "";
+
+            var lastTrackText = lastPlay != null
+                ? $"{EscapeHtml(lastPlay.Title)} — {EscapeHtml(lastPlay.Artist)}"
+                : "—";
+            var lastDateText = lastPlay != null ? lastPlay.PlayedAt.ToString("MMM d") : "";
+
+            var mosaicItems = BuildCoverMosaic(stats, yearPlays);
+            var mosaicHtml = string.Join("\n", mosaicItems.Select(item =>
+                $"<div class='jacket-quad-item' title='{EscapeHtml(item.Title)} — {EscapeHtml(item.Artist)}'>" +
+                $"{RenderCoverArt(item.DataUri, item.Title, item.Artist, "sleeve-frame jacket-quad-sleeve")}" +
+                $"</div>"));
+
             var content = $@"
-                <div class='welcome-container'>
-                    <div class='background-elements'>
-                        <div class='waveform-bg'></div>
-                        <div class='particle-system'></div>
-                        <div class='gradient-orb gradient-orb-1'></div>
-                        <div class='gradient-orb gradient-orb-2'></div>
-                        <div class='gradient-orb gradient-orb-3'></div>
-                    </div>
-                    
-                    <div class='content-grid'>
-                        <div class='hero-section'>
-                            <div class='year-display'>
-                                <span class='year-text'>{year}</span>
-                                <div class='year-underline'></div>
+                <div class='welcome-jacket'>
+                    <div class='welcome-editorial-col'>
+                        <div class='welcome-headline-block'>
+                            <div class='liner-kicker'>OVERVIEW</div>
+                            <div class='welcome-year-numeral'>{year}</div>
+                            <h1 class='welcome-serif-title'>Your Year in Music</h1>
+                        </div>
+
+                        <div class='welcome-ledger-grid'>
+                            <div class='welcome-ledger-cell'>
+                                <span class='mono-label'>HOURS</span>
+                                <div class='welcome-stat-num'>{stats.TotalHours:N0}</div>
                             </div>
-                            
-                            <div class='title-stack'>
-                                <h1 class='main-title'>
-                                    <span class='title-word word-1'>Your</span>
-                                    <span class='title-word word-2'>Music</span>
-                                    <span class='title-word word-3'>Story</span>
-                                </h1>
-                                <div class='title-subtitle'>A deep dive into your personal soundtrack</div>
+                            <div class='welcome-ledger-cell'>
+                                <span class='mono-label'>PLAYS</span>
+                                <div class='welcome-stat-num'>{stats.TotalTracks:N0}</div>
                             </div>
-                            
-                            <div class='stats-preview'>
-                                <div class='stat-item stat-1'>
-                                    <div class='stat-number'>{FormatNumber(stats.TotalTracks)}</div>
-                                    <div class='stat-label'>Tracks Played</div>
-                                </div>
-                                <div class='stat-item stat-2'>
-                                    <div class='stat-number'>{stats.TotalHours:F0}h</div>
-                                    <div class='stat-label'>Hours Listened</div>
-                                </div>
-                                <div class='stat-item stat-3'>
-                                    <div class='stat-number'>{stats.TotalUniqueArtists}</div>
-                                    <div class='stat-label'>Unique Artists</div>
-                                </div>
+                            <div class='welcome-ledger-cell'>
+                                <span class='mono-label'>ARTISTS</span>
+                                <div class='welcome-stat-num'>{stats.TotalUniqueArtists:N0}</div>
+                            </div>
+                            <div class='welcome-ledger-cell'>
+                                <span class='mono-label'>ALBUMS</span>
+                                <div class='welcome-stat-num'>{stats.TotalUniqueAlbums:N0}</div>
                             </div>
                         </div>
-                        
-                        <div class='navigation-hint'>
-                            <div class='hint-line'></div>
-                            <span class='hint-text'>Navigate with arrow keys or click</span>
-                            <div class='hint-pulse'></div>
+
+                        <div class='welcome-bookends'>
+                            <div class='bookend-row'>
+                                <span class='bookend-stamp'>FIRST PLAY</span>
+                                <span class='bookend-track'>{firstTrackText}</span>
+                                <span class='bookend-date'>{firstDateText}</span>
+                            </div>
+                            <div class='bookend-row'>
+                                <span class='bookend-stamp'>LAST PLAY</span>
+                                <span class='bookend-track'>{lastTrackText}</span>
+                                <span class='bookend-date'>{lastDateText}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class='welcome-art-col'>
+                        <div class='jacket-quad-grid'>
+                            {mosaicHtml}
                         </div>
                     </div>
                 </div>";
@@ -68,475 +90,187 @@ namespace MusicBeeWrapped.Services.UI.Slides
             return WrapInSlideContainer(content);
         }
 
-        public override string GetInsightText(WrappedStatistics stats, PlayHistory playHistory, int year)
+        private class MosaicItem
         {
-            return GetWelcomeInsight(stats, year);
+            public string Title { get; set; }
+            public string Artist { get; set; }
+            public string DataUri { get; set; }
         }
 
-        private string GetWelcomeInsight(WrappedStatistics stats, int year)
+        private List<MosaicItem> BuildCoverMosaic(WrappedStatistics stats, List<TrackPlay> yearPlays)
         {
-            var trackText = stats.TotalTracks == 1 ? "track" : "tracks";
-            var hourText = Math.Abs(stats.TotalHours - 1) < 0.1 ? "hour" : "hours";
-            
-            return $"This year you listened to <strong>{FormatNumber(stats.TotalTracks)} {trackText}</strong> " +
-                   $"across <strong>{stats.TotalHours:F1} {hourText}</strong> of music. " +
-                   $"Let's explore what made your {year} special.";
-        }
+            var result = new List<MosaicItem>();
+            var seenAlbums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public override bool CanRender(WrappedStatistics stats, PlayHistory playHistory)
-        {
-            return base.CanRender(stats, playHistory) && stats.TotalTracks > 0;
+            foreach (var trackKv in stats.TopTracks ?? new List<KeyValuePair<string, int>>())
+            {
+                if (result.Count >= 4) break;
+                var parts = trackKv.Key.Split(new[] { " - " }, 2, StringSplitOptions.None);
+                var artist = parts.Length > 0 ? parts[0] : "";
+                var title = parts.Length > 1 ? parts[1] : trackKv.Key;
+
+                var play = yearPlays.FirstOrDefault(p =>
+                    string.Equals(p.Title, title, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(p.Artist, artist, StringComparison.OrdinalIgnoreCase));
+
+                string albumKey = play != null && !string.IsNullOrWhiteSpace(play.Album)
+                    ? $"{play.Artist}|||{play.Album}"
+                    : $"{artist}|||{title}";
+
+                if (seenAlbums.Contains(albumKey)) continue;
+                seenAlbums.Add(albumKey);
+
+                string uri = play != null ? Artwork.GetTrackArtworkDataUri(play, 360) : null;
+                result.Add(new MosaicItem
+                {
+                    Title = play != null && !string.IsNullOrWhiteSpace(play.Album) ? play.Album : title,
+                    Artist = artist,
+                    DataUri = uri
+                });
+            }
+
+            while (result.Count < 4)
+            {
+                result.Add(new MosaicItem
+                {
+                    Title = $"Vol. {result.Count + 1}",
+                    Artist = "MusicBee",
+                    DataUri = null
+                });
+            }
+
+            return result;
         }
 
         public override string GenerateCSS()
         {
             return @"
-        /* Welcome Slide - Professional Design System */
-        .welcome-container {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            overflow: hidden;
-            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 25%, #16213e  50%, #0f3460 75%, #533483 100%);
+        .welcome-jacket {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 48px;
+            align-items: center;
+            padding: 12px 0;
         }
 
-        /* Background Elements */
-        .background-elements {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        .waveform-bg {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 20vh;
-            background: repeating-linear-gradient(
-                90deg,
-                transparent 0,
-                rgba(255, 255, 255, 0.03) 0.05vw,
-                rgba(255, 255, 255, 0.03) 0.1vw,
-                transparent 0.15vw,
-                transparent 0.5vw
-            );
-            animation: waveform-pulse 3s ease-in-out infinite;
-        }
-
-        .particle-system {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 0.1vw, transparent 0.1vw),
-                radial-gradient(circle at 80% 20%, rgba(83, 52, 131, 0.3) 0.1vw, transparent 0.1vw),
-                radial-gradient(circle at 40% 70%, rgba(15, 52, 96, 0.2) 0.1vw, transparent 0.1vw),
-                radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.05) 0.1vw, transparent 0.1vw);
-            background-size: 10vw 10vh, 15vw 15vh, 8vw 8vh, 12vw 12vh;
-            animation: particle-float 20s linear infinite;
-        }
-
-        .gradient-orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(4vw);
-            opacity: 0.4;
-            animation: orb-float 8s ease-in-out infinite;
-        }
-
-        .gradient-orb-1 {
-            width: 30vw;
-            height: 30vw;
-            background: radial-gradient(circle, #533483, transparent);
-            top: 10%;
-            right: 10%;
-            animation-delay: 0s;
-        }
-
-        .gradient-orb-2 {
-            width: 20vw;
-            height: 20vw;
-            background: radial-gradient(circle, #0f3460, transparent);
-            bottom: 20%;
-            left: 15%;
-            animation-delay: 3s;
-        }
-
-        .gradient-orb-3 {
-            width: 15vw;
-            height: 15vw;
-            background: radial-gradient(circle, #16213e, transparent);
-            top: 50%;
-            left: 50%;
-            animation-delay: 6s;
-        }
-
-        /* Content Grid */
-        .content-grid {
-            position: relative;
-            z-index: 2;
+        .welcome-editorial-col {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            padding: clamp(2rem, 4vw, 4rem);
-            text-align: center;
+            gap: 28px;
         }
 
-        /* Hero Section */
-        .hero-section {
-            max-width: 80vw;
-            margin-bottom: clamp(3rem, 6vh, 6rem);
+        .welcome-headline-block {
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--rule-strong);
         }
 
-        .year-display {
-            margin-bottom: clamp(2rem, 4vh, 4rem);
-            animation: year-entrance 1s ease-out;
+        .welcome-year-numeral {
+            font-family: var(--font-serif);
+            font-size: clamp(5rem, 8.5vw, 7.2rem);
+            line-height: 0.86;
+            letter-spacing: -0.03em;
+            color: var(--accent);
+            margin: 4px 0 6px;
         }
 
-        .year-text {
-            font-size: clamp(1.5rem, 4vw, 2rem);
-            font-weight: 300;
-            color: rgba(255, 255, 255, 0.7);
-            letter-spacing: 0.8vw;
-            text-transform: uppercase;
-            position: relative;
+        .welcome-serif-title {
+            font-family: var(--font-serif);
+            font-size: clamp(2rem, 3vw, 2.7rem);
+            font-weight: 400;
+            line-height: 1.04;
+            color: var(--ink);
         }
 
-        .year-underline {
-            width: 0;
-            height: 0.2vh;
-            background: linear-gradient(90deg, transparent, #533483, transparent);
-            margin: clamp(1rem, 2vh, 2rem) auto 0;
-            animation: underline-grow 1.5s ease-out 0.5s forwards;
+        .welcome-ledger-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-top: 1px solid var(--rule-strong);
+            border-left: 1px solid var(--rule-strong);
+            background: var(--bg-card);
         }
 
-        /* Title Stack */
-        .title-stack {
-            margin-bottom: clamp(3rem, 6vh, 6rem);
-        }
-
-        .main-title {
-            font-size: clamp(3rem, 8vw, 6rem);
-            font-weight: 700;
-            line-height: 1.1;
-            margin-bottom: clamp(1.5rem, 3vh, 3rem);
-            background: linear-gradient(135deg, #ffffff 0%, #b8b8b8 50%, #533483 100%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-size: 200% 200%;
-            animation: title-shimmer 3s ease-in-out infinite;
-        }
-
-        .title-word {
-            display: inline-block;
-            animation: word-entrance 0.8s ease-out forwards;
-            opacity: 0;
-            transform: translateY(3vh);
-        }
-
-        .word-1 { animation-delay: 0.2s; }
-        .word-2 { animation-delay: 0.4s; }
-        .word-3 { animation-delay: 0.6s; }
-
-        .title-subtitle {
-            font-size: clamp(1rem, 2.5vw, 1.2rem);
-            font-weight: 300;
-            color: rgba(255, 255, 255, 0.6);
-            letter-spacing: 0.2vw;
-            animation: subtitle-fade-in 1s ease-out 1s forwards;
-            opacity: 0;
-        }
-
-        /* Stats Preview */
-        .stats-preview {
+        .welcome-ledger-cell {
+            padding: 22px 24px;
+            border-right: 1px solid var(--rule-strong);
+            border-bottom: 1px solid var(--rule-strong);
             display: flex;
-            justify-content: center;
-            gap: clamp(2rem, 6vw, 6rem);
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 6px;
         }
 
-        .stat-item {
-            opacity: 0;
-            transform: translateY(2vh);
-            animation: stat-entrance 0.6s ease-out forwards;
+        .welcome-stat-num {
+            font-family: var(--font-serif);
+            font-size: 3.1rem;
+            line-height: 0.94;
+            color: var(--ink);
         }
 
-        .stat-1 { animation-delay: 1.2s; }
-        .stat-2 { animation-delay: 1.4s; }
-        .stat-3 { animation-delay: 1.6s; }
+        .welcome-bookends {
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid var(--rule);
+        }
 
-        .stat-number {
-            font-size: clamp(2rem, 5vw, 2.5rem);
+        .bookend-row {
+            display: grid;
+            grid-template-columns: 90px 1fr auto;
+            align-items: baseline;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--rule);
+            font-size: 0.86rem;
+        }
+
+        .bookend-stamp {
+            font-family: var(--font-mono);
+            font-size: 0.66rem;
             font-weight: 600;
-            color: #533483;
-            margin-bottom: clamp(0.5rem, 1vh, 1rem);
-            text-shadow: 0 0 2vw rgba(83, 52, 131, 0.5);
+            letter-spacing: 0.12em;
+            color: var(--ink-muted);
         }
 
-        .stat-label {
-            font-size: clamp(0.8rem, 2vw, 0.9rem);
-            color: rgba(255, 255, 255, 0.5);
-            text-transform: uppercase;
-            letter-spacing: 0.1vw;
+        .bookend-track {
+            font-weight: 500;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        /* Navigation Hint */
-        .navigation-hint {
+        .bookend-date {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--ink-muted);
+            white-space: nowrap;
+        }
+
+        .welcome-art-col {
             display: flex;
             align-items: center;
-            gap: clamp(1rem, 3vw, 2rem);
-            opacity: 0;
-            animation: hint-fade-in 1s ease-out 2s forwards;
+            justify-content: center;
         }
 
-        .hint-line {
-            width: clamp(30px, 5vw, 60px);
-            height: 0.1vh;
-            background: rgba(255, 255, 255, 0.3);
+        .jacket-quad-grid {
+            width: 100%;
+            max-width: 470px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--rule-strong);
         }
 
-        .hint-text {
-            font-size: clamp(0.8rem, 2vw, 0.9rem);
-            color: rgba(255, 255, 255, 0.5);
-            letter-spacing: 0.1vw;
+        .jacket-quad-sleeve {
+            width: 100%;
         }
 
-        .hint-pulse {
-            width: clamp(6px, 1vw, 12px);
-            height: clamp(6px, 1vw, 12px);
-            border-radius: 50%;
-            background: #533483;
-            animation: pulse-glow 2s ease-in-out infinite;
-        }
-
-        /* Animations */
-        @keyframes waveform-pulse {
-            0%, 100% { opacity: 0.3; transform: scaleY(1); }
-            50% { opacity: 0.6; transform: scaleY(1.2); }
-        }
-
-        @keyframes particle-float {
-            0% { transform: translateX(0) translateY(0); }
-            25% { transform: translateX(1vw) translateY(-0.5vh); }
-            50% { transform: translateX(0) translateY(-1vh); }
-            75% { transform: translateX(-1vw) translateY(-0.5vh); }
-            100% { transform: translateX(0) translateY(0); }
-        }
-
-        @keyframes orb-float {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-2vh) scale(1.1); }
-        }
-
-        @keyframes year-entrance {
-            from { opacity: 0; transform: translateY(-2vh); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes underline-grow {
-            from { width: 0; }
-            to { width: clamp(60px, 8vw, 120px); }
-        }
-
-        @keyframes title-shimmer {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        @keyframes word-entrance {
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes subtitle-fade-in {
-            to { opacity: 1; }
-        }
-
-        @keyframes stat-entrance {
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes hint-fade-in {
-            to { opacity: 1; }
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 0.5vw rgba(83, 52, 131, 0.5); }
-            50% { box-shadow: 0 0 2vw rgba(83, 52, 131, 1), 0 0 3vw rgba(83, 52, 131, 0.5); }
-        }
-
-        /* Responsive Design */
-        @media (max-width: 48rem) {
-            .content-grid { padding: clamp(1.5rem, 3vw, 3rem); }
-            .stats-preview { 
-                gap: clamp(1.5rem, 4vw, 3rem); 
-                flex-direction: column;
-                align-items: center;
+        @media (max-width: 980px) {
+            .welcome-jacket {
+                grid-template-columns: 1fr;
             }
-            .stat-item { margin-bottom: 1rem; }
-            .year-text { font-size: clamp(1.2rem, 4vw, 1.6rem); letter-spacing: 0.5vw; }
-            .stat-number { font-size: clamp(1.8rem, 5vw, 2.2rem); }
-            .navigation-hint { flex-direction: column; gap: clamp(0.8rem, 2vw, 1.2rem); }
-        }";
         }
-
-        public override string GenerateJavaScript(WrappedStatistics stats, int year)
-        {
-            return @"
-        // Professional Welcome Slide Enhancements
-        function initializeWelcomeSlide() {
-            const welcomeSlide = document.querySelector('[data-slide-id=""welcome""]');
-            if (!welcomeSlide) return;
-
-            // Enhanced particle system
-            createDynamicParticles();
-            
-            // Interactive gradient orbs
-            initializeOrbInteractions();
-            
-            // Advanced number counter animation
-            animateStatNumbers();
-            
-            // Audio-reactive waveform (simulated)
-            simulateAudioWaveform();
-        }
-
-        function createDynamicParticles() {
-            const particleSystem = document.querySelector('.particle-system');
-            if (!particleSystem) return;
-
-            // Create floating geometric particles
-            for (let i = 0; i < 15; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'dynamic-particle';
-                particle.style.cssText = `
-                    position: absolute;
-                    width: ${Math.random() * 4 + 2}px;
-                    height: ${Math.random() * 4 + 2}px;
-                    background: rgba(255, 255, 255, ${Math.random() * 0.3 + 0.1});
-                    border-radius: 50%;
-                    left: ${Math.random() * 100}%;
-                    top: ${Math.random() * 100}%;
-                    animation: particle-drift ${Math.random() * 20 + 10}s linear infinite;
-                    animation-delay: ${Math.random() * 10}s;
-                `;
-                particleSystem.appendChild(particle);
-            }
-
-            // Add CSS for particle drift
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes particle-drift {
-                    0% { transform: translateY(100vh) translateX(0); opacity: 0; }
-                    10% { opacity: 1; }
-                    90% { opacity: 1; }
-                    100% { transform: translateY(-10vh) translateX(${Math.random() * 20 - 10}vw); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
-        function initializeOrbInteractions() {
-            const orbs = document.querySelectorAll('.gradient-orb');
-            
-            document.addEventListener('mousemove', (e) => {
-                const mouseX = e.clientX / window.innerWidth;
-                const mouseY = e.clientY / window.innerHeight;
-                
-                orbs.forEach((orb, index) => {
-                    const speed = (index + 1) * 0.02;
-                    const xOffset = (mouseX - 0.5) * speed * 100;
-                    const yOffset = (mouseY - 0.5) * speed * 100;
-                    
-                    orb.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
-                });
-            });
-        }
-
-        function animateStatNumbers() {
-            const statNumbers = document.querySelectorAll('.stat-number');
-            
-            statNumbers.forEach((element, index) => {
-                setTimeout(() => {
-                    const finalValue = element.textContent;
-                    const numericValue = parseInt(finalValue.replace(/[^\d]/g, ''));
-                    
-                    if (!isNaN(numericValue)) {
-                        animateCounter(element, 0, numericValue, 1500, finalValue);
-                    }
-                }, 1200 + (index * 200));
-            });
-        }
-
-        function animateCounter(element, start, end, duration, finalText) {
-            const startTime = performance.now();
-            
-            function updateCounter(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                
-                const current = Math.floor(start + (end - start) * easeOut);
-                
-                if (finalText.includes('h')) {
-                    element.textContent = current + 'h';
-                } else if (end > 1000) {
-                    element.textContent = (current / 1000).toFixed(1) + 'k';
-                } else {
-                    element.textContent = current.toLocaleString();
-                }
-                
-                if (progress < 1) {
-                    requestAnimationFrame(updateCounter);
-                } else {
-                    element.textContent = finalText;
-                }
-            }
-            
-            requestAnimationFrame(updateCounter);
-        }
-
-        function simulateAudioWaveform() {
-            const waveform = document.querySelector('.waveform-bg');
-            if (!waveform) return;
-
-            let intensity = 0;
-            
-            function updateWaveform() {
-                intensity = Math.sin(Date.now() * 0.003) * 0.5 + 0.5;
-                const scale = 0.8 + intensity * 0.4;
-                const opacity = 0.3 + intensity * 0.3;
-                
-                waveform.style.transform = `scaleY(${scale})`;
-                waveform.style.opacity = opacity;
-                
-                requestAnimationFrame(updateWaveform);
-            }
-            
-            updateWaveform();
-        }
-
-        // Initialize when the welcome slide becomes active
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(initializeWelcomeSlide, 100);
-        });
-
-        // Use event listener approach instead of function override to avoid conflicts
-        document.addEventListener('slideChanged', function(event) {
-            setTimeout(() => {
-                const activeSlide = document.querySelector('.slide.active');
-                if (activeSlide && activeSlide.querySelector('[data-slide-id=""welcome""]')) {
-                    initializeWelcomeSlide();
-                }
-            }, 100);
-        });";
+";
         }
     }
 }

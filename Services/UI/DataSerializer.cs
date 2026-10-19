@@ -8,72 +8,60 @@ using MusicBeeWrapped;
 namespace MusicBeeWrapped.Services.UI
 {
     /// <summary>
-    /// Handles serialization of wrapped statistics data to JSON format for web UI consumption
-    /// Provides type-safe serialization with proper escaping and formatting
+    /// Handles serialization of wrapped statistics data to JSON format for web UI consumption.
+    /// Provides type-safe serialization with proper escaping and accurate duration calculations.
     /// </summary>
     public class DataSerializer
     {
-        /// <summary>
-        /// Serializes a collection of key-value pairs to JSON array format
-        /// </summary>
-        /// <param name="items">Collection of items to serialize</param>
-        /// <returns>JSON array string</returns>
+        private static int GetActualSeconds(TrackPlay p)
+        {
+            if (p == null) return 0;
+            if (p.PlayDuration > 0) return p.PlayDuration;
+            if (p.Duration > 0) return p.Duration;
+            return 210;
+        }
+
         public string SerializeTopList(IEnumerable<KeyValuePair<string, int>> items)
         {
             if (items == null) return "[]";
-            
-            var jsonItems = items.Select(item => 
+
+            var jsonItems = items.Select(item =>
                 $"{{\"name\":\"{EscapeJsonString(item.Key)}\",\"count\":{item.Value}}}");
             return $"[{string.Join(",", jsonItems)}]";
         }
 
-        /// <summary>
-        /// Serializes top tracks with artist/title separation for enhanced display
-        /// </summary>
-        /// <param name="tracks">Collection of track data (format: "Artist - Title")</param>
-        /// <returns>JSON array with separated artist and title fields</returns>
         public string SerializeTopTracks(IEnumerable<KeyValuePair<string, int>> tracks)
         {
             if (tracks == null) return "[]";
-            
-            var jsonItems = tracks.Select(track => 
+
+            var jsonItems = tracks.Select(track =>
             {
-                // Try to split track into title and artist if format is "Artist - Title"
                 var parts = track.Key.Split(new[] { " - " }, 2, StringSplitOptions.None);
                 if (parts.Length == 2)
                 {
                     return $"{{\"title\":\"{EscapeJsonString(parts[1])}\",\"artist\":\"{EscapeJsonString(parts[0])}\",\"count\":{track.Value}}}";
                 }
-                else
-                {
-                    return $"{{\"title\":\"{EscapeJsonString(track.Key)}\",\"artist\":\"Unknown\",\"count\":{track.Value}}}";
-                }
+                return $"{{\"title\":\"{EscapeJsonString(track.Key)}\",\"artist\":\"Unknown\",\"count\":{track.Value}}}";
             });
             return $"[{string.Join(",", jsonItems)}]";
         }
 
-        /// <summary>
-        /// Serializes album data with associated track information
-        /// </summary>
-        /// <param name="albums">Collection of album data</param>
-        /// <param name="playHistory">Play history for track lookup</param>
-        /// <param name="year">Year to filter tracks</param>
-        /// <returns>JSON array with album and track information</returns>
         public string SerializeTopAlbumsWithTracks(IEnumerable<KeyValuePair<string, int>> albums, PlayHistory playHistory, int year)
         {
             if (albums == null) return "[]";
-            
+
+            var yearPlays = playHistory != null ? playHistory.GetPlaysByYear(year).ToList() : new List<TrackPlay>();
+
             var jsonItems = albums.Select(album =>
             {
-                // Parse album format: "Album - Artist"
                 var parts = album.Key.Split(new[] { " - " }, 2, StringSplitOptions.None);
                 var albumName = parts.Length >= 1 ? parts[0] : album.Key;
                 var artistName = parts.Length >= 2 ? parts[1] : "Unknown";
 
-                // Find top tracks from this album
-                var albumTracks = playHistory.GetPlaysByYear(year)
-                    .Where(p => p.Album == albumName && p.Artist == artistName)
-                    .GroupBy(p => p.Title)
+                var albumTracks = yearPlays
+                    .Where(p => string.Equals(p.Album, albumName, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(p.Artist, artistName, StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(p => p.Title ?? "Unknown")
                     .Select(g => new { Title = g.Key, Count = g.Count() })
                     .OrderByDescending(t => t.Count)
                     .Take(3)
@@ -88,57 +76,37 @@ namespace MusicBeeWrapped.Services.UI
             return $"[{string.Join(",", jsonItems)}]";
         }
 
-        /// <summary>
-        /// Serializes daily listening minutes data for chart visualization
-        /// </summary>
-        /// <param name="dailyMinutes">Dictionary of date -> minutes</param>
-        /// <returns>JSON object with date keys and minute values</returns>
         public string SerializeDailyMinutes(Dictionary<string, double> dailyMinutes)
         {
             if (dailyMinutes == null) return "{}";
-            
-            var jsonItems = dailyMinutes.OrderBy(x => x.Key).Select(item => 
+
+            var jsonItems = dailyMinutes.OrderBy(x => x.Key).Select(item =>
                 $"\"{item.Key}\":{item.Value.ToString("F1", CultureInfo.InvariantCulture)}");
             return $"{{{string.Join(",", jsonItems)}}}";
         }
 
-        /// <summary>
-        /// Serializes daily play counts for chart visualization
-        /// </summary>
-        /// <param name="dailyPlays">Dictionary of date -> play count</param>
-        /// <returns>JSON object with date keys and play count values</returns>
         public string SerializeDailyPlays(Dictionary<string, int> dailyPlays)
         {
             if (dailyPlays == null) return "{}";
-            
-            var jsonItems = dailyPlays.OrderBy(x => x.Key).Select(item => 
+
+            var jsonItems = dailyPlays.OrderBy(x => x.Key).Select(item =>
                 $"\"{item.Key}\":{item.Value}");
             return $"{{{string.Join(",", jsonItems)}}}";
         }
 
-        /// <summary>
-        /// Serializes monthly listening hours for overview visualization
-        /// </summary>
-        /// <param name="monthlyHours">Dictionary of month -> hours</param>
-        /// <returns>JSON object with month keys and hour values</returns>
         public string SerializeMonthlyHours(Dictionary<string, double> monthlyHours)
         {
             if (monthlyHours == null) return "{}";
-            
-            var jsonItems = monthlyHours.OrderBy(x => x.Key).Select(item => 
+
+            var jsonItems = monthlyHours.OrderBy(x => x.Key).Select(item =>
                 $"\"{item.Key}\":{item.Value.ToString("F1", CultureInfo.InvariantCulture)}");
             return $"{{{string.Join(",", jsonItems)}}}";
         }
 
-        /// <summary>
-        /// Serializes individual track play data for detailed display
-        /// </summary>
-        /// <param name="play">Track play instance</param>
-        /// <returns>JSON object with track details or null</returns>
         public string SerializePlayData(TrackPlay play)
         {
             if (play == null) return "null";
-            
+
             return $"{{" +
                    $"\"title\":\"{EscapeJsonString(play.Title)}\"," +
                    $"\"artist\":\"{EscapeJsonString(play.Artist)}\"," +
@@ -150,15 +118,60 @@ namespace MusicBeeWrapped.Services.UI
                    $"}}";
         }
 
-        /// <summary>
-        /// Escapes special characters in strings for safe JSON embedding
-        /// </summary>
-        /// <param name="input">Raw string input</param>
-        /// <returns>JSON-safe escaped string</returns>
+        private string SerializeDailyDetails(List<TrackPlay> yearPlays)
+        {
+            if (yearPlays == null || !yearPlays.Any()) return "{}";
+
+            var grouped = yearPlays
+                .GroupBy(p => p.PlayedAt.ToString("yyyy-MM-dd"))
+                .OrderBy(g => g.Key)
+                .Select(g =>
+                {
+                    var plays = g.Count();
+                    var mins = Math.Round(g.Sum(p => GetActualSeconds(p)) / 60.0, 1);
+                    var topArtist = g.Where(p => !string.IsNullOrEmpty(p.Artist))
+                                     .GroupBy(p => p.Artist)
+                                     .OrderByDescending(ag => ag.Count())
+                                     .Select(ag => ag.Key)
+                                     .FirstOrDefault() ?? "Unknown";
+                    var topTrackGroup = g.Where(p => !string.IsNullOrEmpty(p.Title))
+                                         .GroupBy(p => p.Title)
+                                         .OrderByDescending(tg => tg.Count())
+                                         .FirstOrDefault();
+                    var topTrack = topTrackGroup != null ? topTrackGroup.Key : "";
+                    return $"\"{g.Key}\":{{\"plays\":{plays},\"minutes\":{mins.ToString("F1", CultureInfo.InvariantCulture)},\"topArtist\":\"{EscapeJsonString(topArtist)}\",\"topTrack\":\"{EscapeJsonString(topTrack)}\"}}";
+                });
+
+            return $"{{{string.Join(",", grouped)}}}";
+        }
+
+        private string SerializeMonthlySummaries(List<TrackPlay> yearPlays, int year)
+        {
+            var items = new List<string>();
+            for (int m = 1; m <= 12; m++)
+            {
+                var monthPlays = yearPlays != null
+                    ? yearPlays.Where(p => p.PlayedAt.Month == m).ToList()
+                    : new List<TrackPlay>();
+                int count = monthPlays.Count;
+                double hours = Math.Round(monthPlays.Sum(p => GetActualSeconds(p)) / 3600.0, 1);
+                string topArtist = monthPlays
+                    .Where(p => !string.IsNullOrEmpty(p.Artist))
+                    .GroupBy(p => p.Artist)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => g.Key)
+                    .FirstOrDefault() ?? "—";
+                string monthName = new DateTime(year, m, 1).ToString("MMM", CultureInfo.InvariantCulture);
+
+                items.Add($"{{\"month\":{m},\"name\":\"{monthName}\",\"plays\":{count},\"hours\":{hours.ToString("F1", CultureInfo.InvariantCulture)},\"topArtist\":\"{EscapeJsonString(topArtist)}\"}}");
+            }
+            return $"[{string.Join(",", items)}]";
+        }
+
         public string EscapeJsonString(string input)
         {
             if (string.IsNullOrEmpty(input)) return "";
-            
+
             return input.Replace("\\", "\\\\")
                        .Replace("\"", "\\\"")
                        .Replace("\n", "\\n")
@@ -168,16 +181,11 @@ namespace MusicBeeWrapped.Services.UI
                        .Replace("\f", "\\f");
         }
 
-        /// <summary>
-        /// Creates the complete data object for embedding in HTML template
-        /// </summary>
-        /// <param name="stats">Wrapped statistics</param>
-        /// <param name="playHistory">Play history data</param>
-        /// <param name="year">Target year</param>
-        /// <returns>Complete JavaScript object literal string</returns>
         public string CreateWrappedDataObject(WrappedStatistics stats, PlayHistory playHistory, int year)
         {
-            var yearPlays = playHistory.GetPlaysByYear(year).OrderBy(p => p.PlayedAt).ToList();
+            var yearPlays = playHistory != null
+                ? playHistory.GetPlaysByYear(year).OrderBy(p => p.PlayedAt).ToList()
+                : new List<TrackPlay>();
             var firstPlay = yearPlays.FirstOrDefault();
             var lastPlay = yearPlays.LastOrDefault();
 
@@ -188,20 +196,54 @@ namespace MusicBeeWrapped.Services.UI
             dataObject.AppendLine($"            totalHours: {stats.TotalHours.ToString("F1", CultureInfo.InvariantCulture)},");
             dataObject.AppendLine($"            totalArtists: {stats.TotalUniqueArtists},");
             dataObject.AppendLine($"            totalAlbums: {stats.TotalUniqueAlbums},");
-            dataObject.AppendLine($"            topArtists: {SerializeTopList(stats.TopArtists.Take(5))},");
-            dataObject.AppendLine($"            topTracks: {SerializeTopTracks(stats.TopTracks.Take(5))},");
-            dataObject.AppendLine($"            topAlbums: {SerializeTopAlbumsWithTracks(stats.TopAlbums.Take(5), playHistory, year)},");
+            dataObject.AppendLine($"            topArtists: {SerializeTopList(stats.TopArtists.Take(10))},");
+            dataObject.AppendLine($"            topTracks: {SerializeTopTracks(stats.TopTracks.Take(10))},");
+            dataObject.AppendLine($"            topAlbums: {SerializeTopAlbumsWithTracks(stats.TopAlbums.Take(8), playHistory, year)},");
             dataObject.AppendLine($"            longestStreak: {stats.LongestListeningStreak},");
             dataObject.AppendLine($"            mostActiveHour: {stats.MostActiveHour},");
             dataObject.AppendLine($"            dailyMinutes: {SerializeDailyMinutes(stats.DailyListeningMinutes)},");
             dataObject.AppendLine($"            dailyPlays: {SerializeDailyPlays(stats.DailyPlayCounts)},");
+            dataObject.AppendLine($"            dailyDetails: {SerializeDailyDetails(yearPlays)},");
+            dataObject.AppendLine($"            monthlySummaries: {SerializeMonthlySummaries(yearPlays, year)},");
             dataObject.AppendLine($"            monthlyHours: {SerializeMonthlyHours(stats.MonthlyListeningHours)},");
             dataObject.AppendLine($"            weekendRatio: {stats.WeekendVsWeekdayRatio.ToString("F2", CultureInfo.InvariantCulture)},");
             dataObject.AppendLine($"            firstPlay: {SerializePlayData(firstPlay)},");
             dataObject.AppendLine($"            lastPlay: {SerializePlayData(lastPlay)}");
             dataObject.AppendLine("        };");
+            dataObject.AppendLine($"        window.top50Tracks = {SerializeTop50ForExport(yearPlays)};");
 
             return dataObject.ToString();
+        }
+
+        private string SerializeTop50ForExport(List<TrackPlay> yearPlays)
+        {
+            if (yearPlays == null || !yearPlays.Any()) return "[]";
+
+            var items = yearPlays
+                .Where(p => !string.IsNullOrEmpty(p.Title))
+                .GroupBy(p => $"{(p.Artist ?? "Unknown").Trim()}|||{p.Title.Trim()}", StringComparer.OrdinalIgnoreCase)
+                .Select(g =>
+                {
+                    var first = g.First();
+                    var fileUrl = g.Select(x => x.FileUrl).FirstOrDefault(u => !string.IsNullOrEmpty(u)) ?? "";
+                    var dur = first.Duration > 0 ? first.Duration : GetActualSeconds(first);
+                    return new
+                    {
+                        Title = first.Title ?? "Unknown",
+                        Artist = first.Artist ?? "Unknown",
+                        FilePath = fileUrl,
+                        Duration = dur,
+                        Count = g.Count(),
+                        TotalSeconds = g.Sum(x => GetActualSeconds(x))
+                    };
+                })
+                .OrderByDescending(x => x.Count)
+                .ThenByDescending(x => x.TotalSeconds)
+                .Take(50)
+                .Select(t =>
+                    $"{{\"title\":\"{EscapeJsonString(t.Title)}\",\"artist\":\"{EscapeJsonString(t.Artist)}\",\"filePath\":\"{EscapeJsonString(t.FilePath)}\",\"duration\":{t.Duration},\"count\":{t.Count}}}");
+
+            return $"[{string.Join(",", items)}]";
         }
     }
 }
