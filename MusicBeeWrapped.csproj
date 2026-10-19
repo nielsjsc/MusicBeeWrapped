@@ -72,7 +72,6 @@
     <Compile Include="Services\UI\SessionManager.cs" />
     <Compile Include="Services\UI\BrowserLauncher.cs" />
     <Compile Include="Services\UI\YearSelectorService.cs" />
-    <Compile Include="Services\UI\WrappedNotificationPopup.cs" />
     <!-- Slide Components -->
     <Compile Include="Services\UI\Slides\SlideComponentBase.cs" />
     <!-- Welcome slide -->

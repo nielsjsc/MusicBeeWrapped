@@ -22,8 +22,6 @@ namespace MusicBeePlugin
         
         // Timer for periodic checks (5-second rule enforcement)
         private Timer periodicCheckTimer;
-        private Timer startupNotificationTimer;
-        private bool notificationChecked;
         
         /// <summary>
         /// Provides access to the MusicBee API for service classes
@@ -97,9 +95,6 @@ namespace MusicBeePlugin
             
             // Start periodic check timer (runs every second to check 5-second rule)
             periodicCheckTimer = new Timer(PeriodicCheckCallback, null, 1000, 1000);
-
-            // Schedule non-blocking startup notification check after MusicBee UI is ready
-            startupNotificationTimer = new Timer(CheckStartupNotificationCallback, null, 4500, Timeout.Infinite);
         }
         
         private void RegisterMenuItems()
@@ -203,50 +198,6 @@ namespace MusicBeePlugin
             }
         }
 
-        private void CheckStartupNotificationCallback(object state)
-        {
-            if (notificationChecked) return;
-            notificationChecked = true;
-
-            try
-            {
-                IntPtr hwnd = IntPtr.Zero;
-                try
-                {
-                    if (mbApiInterface.MB_GetWindowHandle != null)
-                    {
-                        hwnd = mbApiInterface.MB_GetWindowHandle();
-                    }
-                }
-                catch
-                {
-                }
-
-                WrappedNotificationPopup.CheckAndShowIfReady(
-                    hwnd,
-                    yearBasedDataService,
-                    (reportType, targetYear) =>
-                    {
-                        switch (reportType)
-                        {
-                            case WrappedReportType.Weekly:
-                                ShowWrappedForDateRange(DateTime.Now.Date.AddDays(-6), DateTime.Now, "This Week");
-                                break;
-                            case WrappedReportType.Monthly:
-                                ShowWrappedForDateRange(DateTime.Now.Date.AddDays(-29), DateTime.Now, "This Month");
-                                break;
-                            case WrappedReportType.Annual:
-                            default:
-                                ShowWrappedForYear(targetYear);
-                                break;
-                        }
-                    });
-            }
-            catch
-            {
-            }
-        }
-
         public bool Configure(IntPtr panelHandle)
         {
             try
@@ -270,9 +221,6 @@ namespace MusicBeePlugin
         {
             periodicCheckTimer?.Dispose();
             periodicCheckTimer = null;
-
-            startupNotificationTimer?.Dispose();
-            startupNotificationTimer = null;
             
             trackingService?.Shutdown();
             yearBasedDataService?.Dispose();
@@ -286,11 +234,6 @@ namespace MusicBeePlugin
         {
             switch (type)
             {
-                case NotificationType.PluginStartup:
-                case NotificationType.MusicBeeStarted:
-                    CheckStartupNotificationCallback(null);
-                    break;
-
                 case NotificationType.TrackChanged:
                     trackingService?.OnTrackChanged();
                     break;
