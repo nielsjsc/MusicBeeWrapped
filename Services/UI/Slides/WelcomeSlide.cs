@@ -38,13 +38,16 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 $"{RenderCoverArt(item.DataUri, item.Title, item.Artist, "sleeve-frame jacket-quad-sleeve")}" +
                 $"</div>"));
 
+            var periodLabel = !string.IsNullOrEmpty(stats.PeriodLabel) ? stats.PeriodLabel : year.ToString();
+            var periodSubtitle = !string.IsNullOrEmpty(stats.PeriodSubtitle) ? stats.PeriodSubtitle : "Your Year in Music";
+
             var content = $@"
                 <div class='welcome-jacket'>
                     <div class='welcome-editorial-col'>
                         <div class='welcome-headline-block'>
                             <div class='liner-kicker'>OVERVIEW</div>
-                            <div class='welcome-year-numeral'>{year}</div>
-                            <h1 class='welcome-serif-title'>Your Year in Music</h1>
+                            <div class='welcome-year-numeral'>{EscapeHtml(periodLabel)}</div>
+                            <h1 class='welcome-serif-title'>{EscapeHtml(periodSubtitle)}</h1>
                         </div>
 
                         <div class='welcome-ledger-grid'>

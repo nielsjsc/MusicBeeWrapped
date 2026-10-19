@@ -183,15 +183,38 @@ namespace MusicBeeWrapped.Services.UI
 
         public string CreateWrappedDataObject(WrappedStatistics stats, PlayHistory playHistory, int year)
         {
-            var yearPlays = playHistory != null
-                ? playHistory.GetPlaysByYear(year).OrderBy(p => p.PlayedAt).ToList()
-                : new List<TrackPlay>();
+            List<TrackPlay> yearPlays;
+            if (playHistory == null || playHistory.Plays == null)
+            {
+                yearPlays = new List<TrackPlay>();
+            }
+            else if (stats != null && stats.IsCustomDateRange && stats.RangeStartDate.HasValue && stats.RangeEndDate.HasValue)
+            {
+                yearPlays = playHistory.Plays
+                    .Where(p => p.PlayedAt.Date >= stats.RangeStartDate.Value.Date && p.PlayedAt.Date <= stats.RangeEndDate.Value.Date)
+                    .OrderBy(p => p.PlayedAt)
+                    .ToList();
+            }
+            else
+            {
+                yearPlays = playHistory.GetPlaysByYear(year).OrderBy(p => p.PlayedAt).ToList();
+            }
+
             var firstPlay = yearPlays.FirstOrDefault();
             var lastPlay = yearPlays.LastOrDefault();
+
+            string rangeStartStr = stats != null && stats.IsCustomDateRange && stats.RangeStartDate.HasValue
+                ? $"\"{stats.RangeStartDate.Value:yyyy-MM-dd}\""
+                : "null";
+            string rangeEndStr = stats != null && stats.IsCustomDateRange && stats.RangeEndDate.HasValue
+                ? $"\"{stats.RangeEndDate.Value:yyyy-MM-dd}\""
+                : "null";
 
             var dataObject = new StringBuilder();
             dataObject.AppendLine("        window.WRAPPED_DATA = {");
             dataObject.AppendLine($"            year: {year},");
+            dataObject.AppendLine($"            rangeStart: {rangeStartStr},");
+            dataObject.AppendLine($"            rangeEnd: {rangeEndStr},");
             dataObject.AppendLine($"            totalTracks: {stats.TotalTracks},");
             dataObject.AppendLine($"            totalHours: {stats.TotalHours.ToString("F1", CultureInfo.InvariantCulture)},");
             dataObject.AppendLine($"            totalArtists: {stats.TotalUniqueArtists},");

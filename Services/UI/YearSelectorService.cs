@@ -36,30 +36,44 @@ namespace MusicBeeWrapped.Services.UI
         {
             try
             {
-                // Get available years and validate them
                 var availableYears = GetValidatedYears();
-                
-                if (availableYears.Count == 0)
-                {
-                    System.Diagnostics.Debug.WriteLine("No years with sufficient data found for year selector");
-                    return false;
-                }
-
-                // If only one year available, skip selector and go directly to that year
-                if (availableYears.Count == 1)
-                {
-                    return GenerateDirectWrapped(availableYears.First());
-                }
 
                 // Create session first - all files will be written to this session
                 var sessionPath = _sessionManager.CreateSession();
 
-                // Generate wrapped HTML for each year in background
+                // Generate weekly & monthly reports if data exists
+                var now = DateTime.Now;
+                var weeklyStart = now.Date.AddDays(-6);
+                var monthlyStart = now.Date.AddDays(-29);
+
+                var weeklyHistory = _dataService.GetPlaysInDateRange(weeklyStart, now);
+                WrappedStatistics weeklyStats = null;
+                if (weeklyHistory != null && weeklyHistory.Plays.Count > 0)
+                {
+                    weeklyStats = new WrappedStatistics(weeklyHistory, weeklyStart, now, "This Week", $"{weeklyStart:MMM d} – {now:MMM d, yyyy}");
+                    GenerateAndWriteCustomPeriodHtml("wrapped_weekly.html", weeklyStats, weeklyHistory, now.Year);
+                }
+
+                var monthlyHistory = _dataService.GetPlaysInDateRange(monthlyStart, now);
+                WrappedStatistics monthlyStats = null;
+                if (monthlyHistory != null && monthlyHistory.Plays.Count > 0)
+                {
+                    monthlyStats = new WrappedStatistics(monthlyHistory, monthlyStart, now, "This Month", $"{monthlyStart:MMM d} – {now:MMM d, yyyy}");
+                    GenerateAndWriteCustomPeriodHtml("wrapped_monthly.html", monthlyStats, monthlyHistory, now.Year);
+                }
+
+                if (availableYears.Count == 0 && weeklyStats == null && monthlyStats == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("No years or periods with sufficient data found for selector");
+                    return false;
+                }
+
+                // Generate wrapped HTML for each year
                 GenerateWrappedForAvailableYears(availableYears);
 
-                // Create year selector HTML
+                // Create report & year selector HTML
                 var metadata = _dataService.GetMetadata();
-                var yearSelectorHtml = _templateBuilder.CreateYearSelectorTemplate(availableYears, metadata);
+                var yearSelectorHtml = _templateBuilder.CreateYearSelectorTemplate(availableYears, metadata, weeklyStats, monthlyStats);
 
                 // Write year selector file to the same session
                 var yearSelectorFile = _sessionManager.WriteSessionFile("year_selector.html", yearSelectorHtml);
@@ -69,10 +83,10 @@ namespace MusicBeeWrapped.Services.UI
 
                 // Launch in browser
                 bool launched = _browserLauncher.LaunchHtmlFile(yearSelectorFile);
-                
+
                 if (launched)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Year selector launched successfully with {availableYears.Count} available years");
+                    System.Diagnostics.Debug.WriteLine($"Report selector launched successfully with {availableYears.Count} available years");
                 }
 
                 return launched;
@@ -81,6 +95,30 @@ namespace MusicBeeWrapped.Services.UI
             {
                 System.Diagnostics.Debug.WriteLine($"Error generating year selector: {ex.Message}");
                 return false;
+            }
+        }
+
+        private void GenerateAndWriteCustomPeriodHtml(string fileName, WrappedStatistics stats, PlayHistory playHistory, int year)
+        {
+            try
+            {
+                var slideManager = new MusicBeeWrapped.Services.UI.Slides.SlideManager();
+                var activeSlides = slideManager.PrepareSlides(stats, playHistory);
+                var wrappedHtml = _templateBuilder.GenerateModularWrappedHTML(
+                    stats,
+                    playHistory,
+                    year,
+                    activeSlides,
+                    new CssStyleProvider(),
+                    new JavaScriptProvider(),
+                    new DataSerializer(),
+                    slideManager
+                );
+                _sessionManager.WriteSessionFile(fileName, wrappedHtml);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error generating custom period {fileName}: {ex.Message}");
             }
         }
 
@@ -145,7 +183,7 @@ namespace MusicBeeWrapped.Services.UI
         /// <param name="minimumPlays">Minimum number of plays required</param>
         /// <param name="minimumListeningTime">Minimum listening time in minutes</param>
         /// <returns>List of valid years with sufficient data</returns>
-        public List<int> GetValidatedYears(int minimumPlays = 50, int minimumListeningTime = 60)
+        public List<int> GetValidatedYears(int minimumPlays = 1, int minimumListeningTime = 0)
         {
             try
             {

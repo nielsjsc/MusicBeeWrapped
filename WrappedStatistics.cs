@@ -57,8 +57,19 @@ namespace MusicBeeWrapped
         public List<ObsessionPeriod> ObsessionPeriods { get; private set; }
         public AlbumListeningBehavior AlbumBehavior { get; private set; }
 
+        // Period display metadata (supports Weekly, Monthly, and Annual reports)
+        public string PeriodLabel { get; set; }
+        public string PeriodSubtitle { get; set; }
+        public bool IsCustomDateRange { get; set; }
+        public DateTime? RangeStartDate { get; set; }
+        public DateTime? RangeEndDate { get; set; }
+
         public WrappedStatistics(PlayHistory playHistory, int year)
         {
+            PeriodLabel = year.ToString();
+            PeriodSubtitle = "Your Year in Music";
+            IsCustomDateRange = false;
+
             var playsInYear = playHistory.GetPlaysByYear(year).ToList();
             CalculateBasicStats(playsInYear, year);
             CalculateEngagementMetrics(playsInYear);
@@ -67,29 +78,57 @@ namespace MusicBeeWrapped
             CalculateStreaksAndPatterns(playsInYear, playHistory, year);
             CalculateDiscoveryMetrics(playsInYear, playHistory, year);
             CalculateEnhancedMetrics(playsInYear);
-            
+
             // Advanced analytics
             CalculateObsessionPeriods(playsInYear);
             CalculateAlbumListeningBehavior(playsInYear);
         }
 
+        public WrappedStatistics(PlayHistory playHistory, DateTime startDate, DateTime endDate, string periodLabel, string periodSubtitle)
+        {
+            PeriodLabel = periodLabel;
+            PeriodSubtitle = periodSubtitle;
+            IsCustomDateRange = true;
+            RangeStartDate = startDate.Date;
+            RangeEndDate = endDate.Date;
+
+            var playsInRange = (playHistory?.Plays ?? new List<TrackPlay>())
+                .Where(p => p.PlayedAt.Date >= startDate.Date && p.PlayedAt.Date <= endDate.Date)
+                .ToList();
+
+            CalculateBasicStatsForRange(playsInRange, startDate.Date, endDate.Date);
+            CalculateEngagementMetrics(playsInRange);
+            CalculateTopLists(playsInRange);
+            CalculateTimePatterns(playsInRange);
+            CalculateStreaksAndPatterns(playsInRange, playHistory, endDate.Year);
+            CalculateDiscoveryMetrics(playsInRange, playHistory, endDate.Year);
+            CalculateEnhancedMetrics(playsInRange);
+
+            CalculateObsessionPeriods(playsInRange);
+            CalculateAlbumListeningBehavior(playsInRange);
+        }
+
         private void CalculateBasicStats(List<TrackPlay> plays, int year)
+        {
+            DateTime startDate = new DateTime(year, 1, 1);
+            DateTime endDate = new DateTime(year, 12, 31).Date > DateTime.Today.Date
+                ? DateTime.Today.Date
+                : new DateTime(year, 12, 31);
+
+            CalculateBasicStatsForRange(plays, startDate, endDate);
+        }
+
+        private void CalculateBasicStatsForRange(List<TrackPlay> plays, DateTime startDate, DateTime endDate)
         {
             TotalTracks = plays.Count;
             TotalUniqueArtists = plays.Select(p => p.Artist).Distinct().Count();
             TotalUniqueAlbums = plays.Select(p => p.Album).Distinct().Count();
             TotalHours = Math.Round(plays.Sum(p => p.PlayDuration) / 3600.0, 1);
-            
-            // Calculate averages based on time range
-            DateTime startDate = new DateTime(year, 1, 1);
-            DateTime endDate = new DateTime(year, 12, 31).Date > DateTime.Today.Date 
-                ? DateTime.Today.Date 
-                : new DateTime(year, 12, 31);
-            
-            int totalDays = (endDate - startDate).Days + 1;
+
+            int totalDays = Math.Max(1, (endDate.Date - startDate.Date).Days + 1);
             AverageTracksPerDay = Math.Round((double)TotalTracks / totalDays, 1);
-            
-            int totalMonths = ((endDate.Year - startDate.Year) * 12) + endDate.Month - startDate.Month + 1;
+
+            int totalMonths = Math.Max(1, ((endDate.Year - startDate.Year) * 12) + endDate.Month - startDate.Month + 1);
             AverageHoursPerMonth = Math.Round(TotalHours / totalMonths, 1);
         }
 
@@ -187,11 +226,15 @@ namespace MusicBeeWrapped
 
         private void CalculateStreaksAndPatterns(List<TrackPlay> plays, PlayHistory playHistory, int year)
         {
-            var listeningDays = playHistory.GetListeningDays(year);
-            
+            var listeningDays = plays
+                .Select(p => p.PlayedAt.Date)
+                .Distinct()
+                .OrderBy(d => d)
+                .ToList();
+
             // Calculate longest streak
             LongestListeningStreak = CalculateLongestStreak(listeningDays);
-            
+
             // Calculate current streak (if year is current year)
             if (year == DateTime.Now.Year)
             {

@@ -86,16 +86,32 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     </div>");
             }
 
+            var periodLabel = !string.IsNullOrEmpty(stats.PeriodLabel) ? stats.PeriodLabel : year.ToString();
+            bool isCustomRange = stats.IsCustomDateRange;
+
+            var stepTabsHtml = !isCustomRange
+                ? @"<div class='step-tabs'>
+                        <button type='button' class='step-tab-btn active' data-goto-step='0'>01 · Daily Chart</button>
+                        <button type='button' class='step-tab-btn' data-goto-step='1'>02 · By Month</button>
+                    </div>"
+                : "";
+
+            var monthStepHtml = !isCustomRange
+                ? $@"<!-- Step 2: 12-Month Grid -->
+                <div class='slide-step' data-step-title='By Month'>
+                    <div class='almanac-grid'>
+                        {string.Join("\n", monthCards)}
+                    </div>
+                </div>"
+                : "";
+
             var content = $@"
                 <header class='liner-header'>
                     <div>
-                        <div class='liner-kicker'>ACROSS THE YEAR</div>
-                        <h1 class='liner-title'>{year} Timeline</h1>
+                        <div class='liner-kicker'>TIMELINE</div>
+                        <h1 class='liner-title'>{EscapeHtml(periodLabel)} Timeline</h1>
                     </div>
-                    <div class='step-tabs'>
-                        <button type='button' class='step-tab-btn active' data-goto-step='0'>01 · Daily Chart</button>
-                        <button type='button' class='step-tab-btn' data-goto-step='1'>02 · By Month</button>
-                    </div>
+                    {stepTabsHtml}
                 </header>
 
                 <!-- Step 1: Spacious Daily Ink Canvas -->
@@ -117,12 +133,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     </div>
                 </div>
 
-                <!-- Step 2: 12-Month Grid -->
-                <div class='slide-step' data-step-title='By Month'>
-                    <div class='almanac-grid'>
-                        {string.Join("\n", monthCards)}
-                    </div>
-                </div>";
+                {monthStepHtml}";
 
             return WrapInSlideContainer(content);
         }
@@ -134,14 +145,19 @@ namespace MusicBeeWrapped.Services.UI.Slides
             let chartMode = 'minutes';
             let pointsCache = [];
 
+            function parseLocalIsoDate(str) {
+                const parts = str.split('-');
+                return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            }
+
             function buildSeries(year, mode) {
                 const data = window.WRAPPED_DATA || {};
                 const dailyMins = data.dailyMinutes || {};
                 const dailyPlays = data.dailyPlays || {};
                 const dailyDetails = data.dailyDetails || {};
 
-                const start = new Date(year, 0, 1);
-                const end = new Date(year, 11, 31);
+                const start = data.rangeStart ? parseLocalIsoDate(data.rangeStart) : new Date(year, 0, 1);
+                const end = data.rangeEnd ? parseLocalIsoDate(data.rangeEnd) : new Date(year, 11, 31);
                 const raw = [];
 
                 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -199,8 +215,10 @@ namespace MusicBeeWrapped.Services.UI.Slides
                 ctx.scale(dpr, dpr);
                 ctx.clearRect(0, 0, width, height);
 
-                const year = (window.WRAPPED_DATA && window.WRAPPED_DATA.year) || new Date().getFullYear();
+                const data = window.WRAPPED_DATA || {};
+                const year = data.year || new Date().getFullYear();
                 const series = buildSeries(year, chartMode);
+                if (!series.length) return;
                 const maxVal = Math.max(10, ...series.map(s => s.value));
 
                 const padL = 42, padR = 16, padT = 18, padB = 26;
@@ -223,14 +241,24 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     ctx.fillText(String(val), padL - 8, y + 3);
                 }
 
-                const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
                 ctx.textAlign = 'left';
-                months.forEach((mLbl, mIdx) => {
-                    const dayOfYear = Math.floor((new Date(year, mIdx, 1) - new Date(year, 0, 1)) / 86400000);
-                    const x = padL + (dayOfYear / Math.max(1, series.length - 1)) * plotW;
-                    ctx.fillStyle = '#726B61';
-                    ctx.fillText(mLbl, x + 2, height - 6);
-                });
+                if (data.rangeStart && data.rangeEnd && series.length <= 45) {
+                    const step = series.length <= 10 ? 1 : Math.max(2, Math.floor(series.length / 7));
+                    for (let i = 0; i < series.length; i += step) {
+                        const x = padL + (i / Math.max(1, series.length - 1)) * plotW;
+                        const lbl = series[i].dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+                        ctx.fillStyle = '#726B61';
+                        ctx.fillText(lbl, Math.min(width - padR - 36, x), height - 6);
+                    }
+                } else {
+                    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+                    months.forEach((mLbl, mIdx) => {
+                        const dayOfYear = Math.floor((new Date(year, mIdx, 1) - new Date(year, 0, 1)) / 86400000);
+                        const x = padL + (dayOfYear / Math.max(1, series.length - 1)) * plotW;
+                        ctx.fillStyle = '#726B61';
+                        ctx.fillText(mLbl, x + 2, height - 6);
+                    });
+                }
 
                 pointsCache = series.map((pt, idx) => {
                     const x = padL + (idx / Math.max(1, series.length - 1)) * plotW;

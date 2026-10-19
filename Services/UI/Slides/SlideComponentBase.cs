@@ -68,10 +68,22 @@ namespace MusicBeeWrapped.Services.UI.Slides
             if (playHistory?.Plays == null || !playHistory.Plays.Any())
                 return new List<TrackPlay>();
 
+            var distinctYears = playHistory.Plays.Select(p => p.PlayedAt.Year).Distinct().ToList();
+            if (distinctYears.Count == 1)
+            {
+                return playHistory.Plays.ToList();
+            }
+
+            var spanDays = (playHistory.Plays.Max(p => p.PlayedAt) - playHistory.Plays.Min(p => p.PlayedAt)).TotalDays;
+            if (spanDays <= 45)
+            {
+                return playHistory.Plays.ToList();
+            }
+
             var plays = playHistory.Plays.Where(p => p.PlayedAt.Year == year).ToList();
             if (!plays.Any())
             {
-                var latestYear = playHistory.Plays.Max(p => p.PlayedAt.Year);
+                var latestYear = distinctYears.Max();
                 plays = playHistory.Plays.Where(p => p.PlayedAt.Year == latestYear).ToList();
             }
             return plays;

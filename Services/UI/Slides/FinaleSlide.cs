@@ -50,11 +50,13 @@ namespace MusicBeeWrapped.Services.UI.Slides
                     <span class='tape-cnt'>{t.PlayCount:N0}</span>
                 </div>"));
 
+            var periodLabel = !string.IsNullOrEmpty(stats.PeriodLabel) ? stats.PeriodLabel : year.ToString();
+
             var content = $@"
                 <header class='liner-header'>
                     <div>
                         <div class='liner-kicker'>SUMMARY</div>
-                        <h1 class='liner-title'>{year} at a Glance</h1>
+                        <h1 class='liner-title'>{EscapeHtml(periodLabel)} at a Glance</h1>
                     </div>
                 </header>
 
@@ -64,7 +66,7 @@ namespace MusicBeeWrapped.Services.UI.Slides
                         <div class='colophon-hero-row'>
                             {RenderCoverArt(colophonCoverUri, topTrackTitle, topArtist, "sleeve-frame colophon-sleeve")}
                             <div class='colophon-hero-copy'>
-                                <div class='colophon-year'>{year}</div>
+                                <div class='colophon-year'>{EscapeHtml(periodLabel)}</div>
                                 <div class='colophon-sub'>SUMMARY</div>
                             </div>
                         </div>

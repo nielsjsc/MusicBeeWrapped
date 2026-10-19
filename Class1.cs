@@ -22,6 +22,8 @@ namespace MusicBeePlugin
         
         // Timer for periodic checks (5-second rule enforcement)
         private Timer periodicCheckTimer;
+        private Timer startupNotificationTimer;
+        private bool notificationChecked;
         
         /// <summary>
         /// Provides access to the MusicBee API for service classes
@@ -32,8 +34,6 @@ namespace MusicBeePlugin
         {
             mbApiInterface = new MusicBeeApiInterface();
             mbApiInterface.Initialise(apiInterfacePtr);
-            
-            mbApiInterface.MB_Trace("MusicBee Wrapped initializing...");
             
             // Configure plugin information
             ConfigurePluginInfo();
@@ -51,12 +51,12 @@ namespace MusicBeePlugin
         {
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "MusicBee Wrapped";
-            about.Description = "Provides Spotify Wrapped-like yearly statistics and visualizations for your MusicBee library";
-            about.Author = "Your Name";
+            about.Description = "Provides Weekly, Monthly, and Annual listening reports and visualizations for your MusicBee library";
+            about.Author = "Nielsjsc";
             about.TargetApplication = "";
             about.Type = PluginType.General;
             about.VersionMajor = 2;
-            about.VersionMinor = 0;
+            about.VersionMinor = 1;
             about.Revision = 0;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
@@ -67,13 +67,25 @@ namespace MusicBeePlugin
         
         private void InitializeServices()
         {
-            // Initialize data directory
-            string dataDirectory = DataPathService.InitializeDataDirectory();
+            // Use MusicBee's persistent storage path so portable installs stay self-contained
+            string persistentStoragePath = null;
+            try
+            {
+                if (mbApiInterface.Setting_GetPersistentStoragePath != null)
+                {
+                    persistentStoragePath = mbApiInterface.Setting_GetPersistentStoragePath();
+                }
+            }
+            catch
+            {
+            }
+
+            string dataDirectory = DataPathService.InitializeDataDirectory(persistentStoragePath);
             
-            // Create new year-based data service
+            // Create year-based data service
             yearBasedDataService = new YearBasedDataService(dataDirectory);
             
-            // Create service instances using the new XML-based system
+            // Create service instances
             trackingService = new TrackingService(this, yearBasedDataService);
             modularWebUIService = new ModularWebUIService(yearBasedDataService);
             
@@ -84,24 +96,29 @@ namespace MusicBeePlugin
             modularWebUIService.CleanupOldSessions();
             
             // Start periodic check timer (runs every second to check 5-second rule)
-            periodicCheckTimer = new Timer(PeriodicCheckCallback, null, 1000, 1000); // 1 second intervals
-            mbApiInterface.MB_Trace("Periodic check timer started for 5-second rule enforcement");
+            periodicCheckTimer = new Timer(PeriodicCheckCallback, null, 1000, 1000);
+
+            // Schedule non-blocking startup notification check after MusicBee UI is ready
+            startupNotificationTimer = new Timer(CheckStartupNotificationCallback, null, 4500, Timeout.Infinite);
         }
         
         private void RegisterMenuItems()
         {
-            // Add menu item to Tools menu for easy access
+            // Add menu items to Tools menu for Weekly, Monthly, Current Year, and All Reports
+            mbApiInterface.MB_AddMenuItem("mnuTools/MusicBee Wrapped - Weekly (Last 7 Days)", "", OnShowWrappedWeekly);
+            mbApiInterface.MB_AddMenuItem("mnuTools/MusicBee Wrapped - Monthly (Last 30 Days)", "", OnShowWrappedMonthly);
             mbApiInterface.MB_AddMenuItem("mnuTools/MusicBee Wrapped - Current Year", "", OnShowWrappedCurrentYear);
-            mbApiInterface.MB_AddMenuItem("mnuTools/MusicBee Wrapped - All Years", "", OnShowWrappedAllYears);
+            mbApiInterface.MB_AddMenuItem("mnuTools/MusicBee Wrapped - All Reports && Years", "", OnShowWrappedAllYears);
             
             // Register commands for hotkey support
+            mbApiInterface.MB_RegisterCommand("MusicBee Wrapped - Weekly (Last 7 Days)", OnShowWrappedWeekly);
+            mbApiInterface.MB_RegisterCommand("MusicBee Wrapped - Monthly (Last 30 Days)", OnShowWrappedMonthly);
             mbApiInterface.MB_RegisterCommand("MusicBee Wrapped - Current Year", OnShowWrappedCurrentYear);
             mbApiInterface.MB_RegisterCommand("MusicBee Wrapped - All Years", OnShowWrappedAllYears);
         }
 
         public bool GetPanelInfo(int panel, out string name, out string description, out IntPtr icon)
         {
-            // We no longer provide a panel UI - only the standalone WPF window
             name = null;
             description = null;
             icon = IntPtr.Zero;
@@ -110,8 +127,17 @@ namespace MusicBeePlugin
 
         public object GetPanel(int panel)
         {
-            // We don't provide a panel UI - plugin uses menu integration only
             return null;
+        }
+
+        private void OnShowWrappedWeekly(object sender, EventArgs e)
+        {
+            ShowWrappedForDateRange(DateTime.Now.Date.AddDays(-6), DateTime.Now, "This Week");
+        }
+
+        private void OnShowWrappedMonthly(object sender, EventArgs e)
+        {
+            ShowWrappedForDateRange(DateTime.Now.Date.AddDays(-29), DateTime.Now, "This Month");
         }
 
         private void OnShowWrappedCurrentYear(object sender, EventArgs e)
@@ -126,79 +152,103 @@ namespace MusicBeePlugin
 
         private void OnShowWrapped(object sender, EventArgs e)
         {
-            // Default to current year for backward compatibility
-            ShowWrappedForYear(DateTime.Now.Year);
+            ShowWrappedYearSelector();
+        }
+
+        private void ShowWrappedForDateRange(DateTime startDate, DateTime endDate, string periodLabel)
+        {
+            try
+            {
+                var playHistory = yearBasedDataService.GetPlaysInDateRange(startDate, endDate);
+                var subtitle = $"{startDate:MMM d} – {endDate:MMM d, yyyy}";
+                var stats = new MusicBeeWrapped.WrappedStatistics(playHistory, startDate, endDate, periodLabel, subtitle);
+                modularWebUIService.GenerateWrappedUI(stats, playHistory, endDate.Year);
+            }
+            catch (Exception ex)
+            {
+                mbApiInterface.MB_Trace($"[MusicBee Wrapped Error] Failed to generate {periodLabel} report: {ex.Message}");
+            }
         }
 
         private void ShowWrappedForYear(int year)
         {
-            mbApiInterface.MB_Trace($"MusicBee Wrapped - Generating web UI for year {year}...");
             try
             {
-                // Get play history for the specified year
                 var playHistory = yearBasedDataService.GetYearData(year);
-                
-                // Create statistics for the specified year
                 var stats = new MusicBeeWrapped.WrappedStatistics(playHistory, year);
-                mbApiInterface.MB_Trace($"Generated statistics for {year}: {playHistory.Plays.Count} total plays");
-                
-                // Generate and launch web UI
-                bool success = modularWebUIService.GenerateWrappedUI(stats, playHistory, year);
-                
-                if (success)
-                {
-                    mbApiInterface.MB_Trace($"MusicBee Wrapped web UI launched successfully for year {year}");
-                }
-                else
-                {
-                    mbApiInterface.MB_Trace("Failed to launch web UI - check browser settings");
-                    // Fallback: Log key statistics to trace
-                    mbApiInterface.MB_Trace($"Total Hours: {stats.TotalHours}");
-                    mbApiInterface.MB_Trace($"Top Artist: {(stats.TopArtists.Any() ? stats.TopArtists.First().Key : "None")}");
-                }
+                modularWebUIService.GenerateWrappedUI(stats, playHistory, year);
             }
             catch (Exception ex)
             {
-                mbApiInterface.MB_Trace($"Error showing MusicBee Wrapped for year {year}: {ex.Message}");
-                mbApiInterface.MB_Trace($"Stack trace: {ex.StackTrace}");
+                mbApiInterface.MB_Trace($"[MusicBee Wrapped Error] Failed to show Wrapped for {year}: {ex.Message}");
             }
         }
 
         private void ShowWrappedYearSelector()
         {
-            mbApiInterface.MB_Trace("MusicBee Wrapped - Generating year selector UI...");
             try
             {
-                // Get available years
                 var availableYears = yearBasedDataService.GetAvailableYears();
                 var metadata = yearBasedDataService.GetMetadata();
-                
-                // Generate year selector UI
                 bool success = modularWebUIService.GenerateYearSelectorUI(availableYears, metadata);
-                
-                if (success)
+                if (!success)
                 {
-                    mbApiInterface.MB_Trace("MusicBee Wrapped year selector launched successfully");
-                }
-                else
-                {
-                    mbApiInterface.MB_Trace("Failed to launch year selector - check browser settings");
-                    // Fallback: Show current year
                     ShowWrappedForYear(DateTime.Now.Year);
                 }
             }
             catch (Exception ex)
             {
-                mbApiInterface.MB_Trace($"Error showing year selector: {ex.Message}");
-                // Fallback: Show current year
+                mbApiInterface.MB_Trace($"[MusicBee Wrapped Error] Failed to show report selector: {ex.Message}");
                 ShowWrappedForYear(DateTime.Now.Year);
+            }
+        }
+
+        private void CheckStartupNotificationCallback(object state)
+        {
+            if (notificationChecked) return;
+            notificationChecked = true;
+
+            try
+            {
+                IntPtr hwnd = IntPtr.Zero;
+                try
+                {
+                    if (mbApiInterface.MB_GetWindowHandle != null)
+                    {
+                        hwnd = mbApiInterface.MB_GetWindowHandle();
+                    }
+                }
+                catch
+                {
+                }
+
+                WrappedNotificationPopup.CheckAndShowIfReady(
+                    hwnd,
+                    yearBasedDataService,
+                    (reportType, targetYear) =>
+                    {
+                        switch (reportType)
+                        {
+                            case WrappedReportType.Weekly:
+                                ShowWrappedForDateRange(DateTime.Now.Date.AddDays(-6), DateTime.Now, "This Week");
+                                break;
+                            case WrappedReportType.Monthly:
+                                ShowWrappedForDateRange(DateTime.Now.Date.AddDays(-29), DateTime.Now, "This Month");
+                                break;
+                            case WrappedReportType.Annual:
+                            default:
+                                ShowWrappedForYear(targetYear);
+                                break;
+                        }
+                    });
+            }
+            catch
+            {
             }
         }
 
         public bool Configure(IntPtr panelHandle)
         {
-            // When the user clicks Configure in the plugin list, show the Wrapped window
-            mbApiInterface.MB_Trace("Configure triggered - opening MusicBee Wrapped");
             try
             {
                 OnShowWrapped(null, EventArgs.Empty);
@@ -206,41 +256,41 @@ namespace MusicBeePlugin
             }
             catch (Exception ex)
             {
-                mbApiInterface.MB_Trace($"Error in Configure: {ex.Message}");
+                mbApiInterface.MB_Trace($"[MusicBee Wrapped Error] Configure failed: {ex.Message}");
                 return false;
             }
         }
 
         public void SaveSettings()
         {
-            // Delegate to tracking service
             trackingService?.Shutdown();
         }
 
         public void Close(PluginCloseReason reason)
         {
-            // Stop the periodic timer
             periodicCheckTimer?.Dispose();
             periodicCheckTimer = null;
+
+            startupNotificationTimer?.Dispose();
+            startupNotificationTimer = null;
             
-            // Ensure all data is saved before closing
             trackingService?.Shutdown();
             yearBasedDataService?.Dispose();
-            
-            mbApiInterface.MB_Trace("MusicBee Wrapped plugin closed");
         }
 
         public void Uninstall()
         {
-            // Clean up when plugin is uninstalled
-            mbApiInterface.MB_Trace("MusicBee Wrapped plugin uninstalled");
         }
 
         public void ReceiveNotification(string sourceFileUrl, NotificationType type)
         {
-            // Delegate to tracking service
             switch (type)
             {
+                case NotificationType.PluginStartup:
+                case NotificationType.MusicBeeStarted:
+                    CheckStartupNotificationCallback(null);
+                    break;
+
                 case NotificationType.TrackChanged:
                     trackingService?.OnTrackChanged();
                     break;
@@ -261,9 +311,8 @@ namespace MusicBeePlugin
             {
                 trackingService?.PeriodicCheck();
             }
-            catch (Exception ex)
+            catch
             {
-                mbApiInterface.MB_Trace($"Error in periodic check: {ex.Message}");
             }
         }
     }

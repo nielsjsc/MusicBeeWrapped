@@ -42,6 +42,10 @@ namespace MusicBeePlugin.Services
 
         /// <summary>
         /// Gets play history for a specific year
+        public string BaseDataPath => _baseDataPath;
+
+        /// <summary>
+        /// Gets play history for a specific year
         /// </summary>
         public PlayHistory GetYearData(int year)
         {
@@ -49,7 +53,7 @@ namespace MusicBeePlugin.Services
             {
                 LoadYearData(year);
             }
-            
+
             return _yearlyData.ContainsKey(year) ? _yearlyData[year] : new PlayHistory();
         }
 
@@ -59,6 +63,30 @@ namespace MusicBeePlugin.Services
         public PlayHistory GetCurrentYearData()
         {
             return GetYearData(_currentYear);
+        }
+
+        /// <summary>
+        /// Gets play history filtered to an arbitrary inclusive date range [startDate.Date, endDate.Date].
+        /// Can span across calendar years (e.g. late December to early January).
+        /// </summary>
+        public PlayHistory GetPlaysInDateRange(DateTime startDate, DateTime endDate)
+        {
+            var result = new PlayHistory();
+            int startYear = startDate.Year;
+            int endYear = endDate.Year;
+
+            for (int y = startYear; y <= endYear; y++)
+            {
+                var yearHistory = GetYearData(y);
+                if (yearHistory?.Plays != null)
+                {
+                    var matching = yearHistory.Plays
+                        .Where(p => p.PlayedAt.Date >= startDate.Date && p.PlayedAt.Date <= endDate.Date);
+                    result.Plays.AddRange(matching);
+                }
+            }
+
+            return result;
         }
         
 

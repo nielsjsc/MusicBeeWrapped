@@ -25,7 +25,11 @@ namespace MusicBeeWrapped.Services.UI
             _dataSerializer = dataSerializer ?? new DataSerializer();
         }
 
-        public string CreateYearSelectorTemplate(List<int> availableYears, YearMetadataCollection metadata)
+        public string CreateYearSelectorTemplate(
+            List<int> availableYears,
+            YearMetadataCollection metadata,
+            WrappedStatistics weeklyStats = null,
+            WrappedStatistics monthlyStats = null)
         {
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
@@ -45,9 +49,19 @@ namespace MusicBeeWrapped.Services.UI
             html.AppendLine("    <div class=\"year-selector-container\">");
             html.AppendLine("        <div class=\"year-selector-header\">");
             html.AppendLine("            <h1>MusicBee Wrapped</h1>");
-            html.AppendLine("            <p class=\"year-selector-subtitle\">Select a year</p>");
+            html.AppendLine("            <p class=\"year-selector-subtitle\">Select a report</p>");
             html.AppendLine("        </div>");
             html.AppendLine("        <div class=\"years-grid\">");
+
+            if (weeklyStats != null && weeklyStats.TotalTracks > 0)
+            {
+                html.AppendLine(CreatePeriodCard("wrapped_weekly.html", "This Week", "Last 7 Days", weeklyStats));
+            }
+
+            if (monthlyStats != null && monthlyStats.TotalTracks > 0)
+            {
+                html.AppendLine(CreatePeriodCard("wrapped_monthly.html", "This Month", "Last 30 Days", monthlyStats));
+            }
 
             foreach (var year in availableYears)
             {
@@ -94,6 +108,7 @@ namespace MusicBeeWrapped.Services.UI
             DataSerializer dataSerializer,
             SlideManager slideManager)
         {
+            string periodLabel = !string.IsNullOrEmpty(stats?.PeriodLabel) ? stats.PeriodLabel : year.ToString();
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
             html.AppendLine("<html lang=\"en\">");
@@ -101,7 +116,7 @@ namespace MusicBeeWrapped.Services.UI
             html.AppendLine("    <meta charset=\"UTF-8\">");
             html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
             html.AppendLine("    <meta name=\"description\" content=\"MusicBee Wrapped\">");
-            html.AppendLine($"    <title>{year} — MusicBee Wrapped</title>");
+            html.AppendLine($"    <title>{EscapeHtml(periodLabel)} — MusicBee Wrapped</title>");
             html.AppendLine("    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">");
             html.AppendLine("    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>");
             html.AppendLine("    <link href=\"https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap\" rel=\"stylesheet\">");
@@ -117,7 +132,7 @@ namespace MusicBeeWrapped.Services.UI
             html.AppendLine("        <div class=\"brand-group\">");
             html.AppendLine("            <span class=\"brand-name\">MusicBee Wrapped</span>");
             html.AppendLine("            <span class=\"brand-divider\">·</span>");
-            html.AppendLine($"            <span class=\"brand-catno\">{year}</span>");
+            html.AppendLine($"            <span class=\"brand-catno\">{EscapeHtml(periodLabel)}</span>");
             html.AppendLine("        </div>");
             html.AppendLine("        <div class=\"topbar-right\">");
             html.AppendLine("            <span id=\"topbar-slide-title\" class=\"active-slide-label\">Overview</span>");
@@ -161,6 +176,42 @@ namespace MusicBeeWrapped.Services.UI
             html.AppendLine("</html>");
 
             return html.ToString();
+        }
+
+        private string CreatePeriodCard(string href, string title, string subtitle, WrappedStatistics stats)
+        {
+            var card = new StringBuilder();
+            card.AppendLine($"        <a href=\"{href}\" class=\"year-card\" tabindex=\"0\" target=\"_self\" rel=\"noopener\">");
+            card.AppendLine($"            <div class=\"year-title\">{EscapeHtml(title)}</div>");
+            card.AppendLine("            <div class=\"year-stats\">");
+            card.AppendLine("                <div class=\"year-stat\">");
+            card.AppendLine($"                    <div class=\"year-stat-number\">{FormatNumber(stats.TotalTracks)}</div>");
+            card.AppendLine("                    <div class=\"year-stat-label\">Tracks</div>");
+            card.AppendLine("                </div>");
+            card.AppendLine("                <div class=\"year-stat\">");
+            card.AppendLine($"                    <div class=\"year-stat-number\">{stats.TotalHours:N1}</div>");
+            card.AppendLine("                    <div class=\"year-stat-label\">Hours</div>");
+            card.AppendLine("                </div>");
+            card.AppendLine("            </div>");
+            card.AppendLine("            <div class=\"year-highlights\">");
+
+            var topArtist = stats.TopArtists != null && stats.TopArtists.Count > 0 ? stats.TopArtists[0].Key : null;
+            if (!string.IsNullOrEmpty(topArtist))
+            {
+                card.AppendLine($"                <div class=\"year-highlight\">Top Artist: <strong>{EscapeHtml(topArtist)}</strong></div>");
+            }
+
+            var topGenre = stats.TopGenres != null && stats.TopGenres.Count > 0 ? stats.TopGenres[0].Key : null;
+            if (!string.IsNullOrEmpty(topGenre))
+            {
+                card.AppendLine($"                <div class=\"year-highlight\">Top Genre: <strong>{EscapeHtml(topGenre)}</strong></div>");
+            }
+
+            card.AppendLine($"                <div class=\"year-highlight\">{EscapeHtml(subtitle)}</div>");
+            card.AppendLine("            </div>");
+            card.AppendLine("        </a>");
+
+            return card.ToString();
         }
 
         private string CreateYearCard(int year, YearMetadata metadata)
