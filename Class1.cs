@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading;
 using MusicBeePlugin.Services;
@@ -55,9 +55,9 @@ namespace MusicBeePlugin
             about.Author = "Your Name";
             about.TargetApplication = "";
             about.Type = PluginType.General;
-            about.VersionMajor = 1;
+            about.VersionMajor = 2;
             about.VersionMinor = 0;
-            about.Revision = 1;
+            about.Revision = 0;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents | 
